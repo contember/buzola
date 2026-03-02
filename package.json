@@ -1,0 +1,8 @@
+{
+  "name": "buzola-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "playground"
+  ]
+}
