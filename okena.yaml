@@ -1,0 +1,4 @@
+services:
+  - name: 'playground'
+    cwd: playground
+    command: bun run dev
