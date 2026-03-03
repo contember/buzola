@@ -1,34 +1,28 @@
-import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RouterContext, RouteContext } from './context';
-import type { Router } from '../engine/router';
-import type {
-  NavigateOptions,
-  RegisteredPath,
-  RegisteredParams,
-  RouterState,
-  StandardSchema,
-} from '../engine/types';
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Router } from '../engine/router'
+import type { NavigateOptions, RegisteredParams, RegisteredPath, RouterState, StandardSchema } from '../engine/types'
+import { RouteContext, RouterContext } from './context'
 
 /**
  * Get the Router instance.
  */
 export function useRouter(): Router {
-  const router = use(RouterContext);
-  if (!router) {
-    throw new Error('useRouter must be used within a <BuzolaProvider>');
-  }
-  return router;
+	const router = use(RouterContext)
+	if (!router) {
+		throw new Error('useRouter must be used within a <BuzolaProvider>')
+	}
+	return router
 }
 
 /**
  * Get the current route context.
  */
 function useRouteContext() {
-  const context = use(RouteContext);
-  if (!context) {
-    throw new Error('Route hooks must be used within a <BuzolaProvider>');
-  }
-  return context;
+	const context = use(RouteContext)
+	if (!context) {
+		throw new Error('Route hooks must be used within a <BuzolaProvider>')
+	}
+	return context
 }
 
 /**
@@ -36,26 +30,25 @@ function useRouteContext() {
  * Infers param requirements from the path literal.
  */
 type NavigateFn = <P extends RegisteredPath>(
-  to: P,
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  ...args: {} extends RegisteredParams<P>
-    ? [options?: NavigateOptions]
-    : [options: NavigateOptions & { params: RegisteredParams<P> }]
-) => void;
+	to: P,
+	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+	...args: {} extends RegisteredParams<P> ? [options?: NavigateOptions]
+		: [options: NavigateOptions & { params: RegisteredParams<P> }]
+) => void
 
 /**
  * Hook to get a type-safe navigate function.
  */
 export function useNavigate(): NavigateFn {
-  const router = useRouter();
+	const router = useRouter()
 
-  return useCallback(
-    (to: string, options?: NavigateOptions & { params?: Record<string, string> }) => {
-      const path = options?.params ? router.buildPath(to, options.params) : to;
-      router.navigate(path, options);
-    },
-    [router],
-  ) as NavigateFn;
+	return useCallback(
+		(to: string, options?: NavigateOptions & { params?: Record<string, string> }) => {
+			const path = options?.params ? router.buildPath(to, options.params) : to
+			router.navigate(path, options)
+		},
+		[router],
+	) as NavigateFn
 }
 
 /**
@@ -63,8 +56,8 @@ export function useNavigate(): NavigateFn {
  * Params are merged from all matched routes (root to current depth).
  */
 export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
-  const context = useRouteContext();
-  return context.params as T;
+	const context = useRouteContext()
+	return context.params as T
 }
 
 /**
@@ -72,83 +65,83 @@ export function useParams<T extends Record<string, string> = Record<string, stri
  * Optionally validates with a Standard Schema compatible schema.
  */
 export function useSearchParams<T = Record<string, string>>(
-  schema?: StandardSchema<T>,
+	schema?: StandardSchema<T>,
 ): T {
-  const context = useRouteContext();
+	const context = useRouteContext()
 
-  return useMemo(() => {
-    const searchParams = context.state.location.searchParams;
-    const raw: Record<string, string[]> = {};
-    searchParams.forEach((value, key) => {
-      const existing = raw[key];
-      if (existing) {
-        existing.push(value);
-      } else {
-        raw[key] = [value];
-      }
-    });
+	return useMemo(() => {
+		const searchParams = context.state.location.searchParams
+		const raw: Record<string, string[]> = {}
+		searchParams.forEach((value, key) => {
+			const existing = raw[key]
+			if (existing) {
+				existing.push(value)
+			} else {
+				raw[key] = [value]
+			}
+		})
 
-    if (schema) {
-      const result = schema['~standard'].validate(raw);
-      if ('issues' in result) {
-        throw new Error(
-          `Search params validation failed: ${result.issues.map(i => i.message).join(', ')}`
-        );
-      }
-      return result.value;
-    }
+		if (schema) {
+			const result = schema['~standard'].validate(raw)
+			if ('issues' in result) {
+				throw new Error(
+					`Search params validation failed: ${result.issues.map(i => i.message).join(', ')}`,
+				)
+			}
+			return result.value
+		}
 
-    return raw as T;
-  }, [context.state.location.searchParams, schema]);
+		return raw as T
+	}, [context.state.location.searchParams, schema])
 }
 
 /**
  * Hook to get information about the current route.
  */
 export function useRoute() {
-  const context = useRouteContext();
-  const router = useRouter();
-  const { state, matches, params, depth } = context;
+	const context = useRouteContext()
+	const router = useRouter()
+	const { state, matches, params, depth } = context
 
-  return useMemo(() => ({
-    /** Current route's params. */
-    params,
-    /** All route matches from root to leaf. */
-    matches,
-    /** Current match depth. */
-    depth,
-    /** Whether a navigation is pending. */
-    isPending: state.isPending,
-    /** Current pathname (with base path stripped). */
-    pathname: router.stripBasePath(state.location.pathname),
-  }), [params, matches, depth, state.isPending, state.location.pathname, router]);
+	return useMemo(() => ({
+		/** Current route's params. */
+		params,
+		/** All route matches from root to leaf. */
+		matches,
+		/** Current match depth. */
+		depth,
+		/** Whether a navigation is pending. */
+		isPending: state.isPending,
+		/** Current pathname (with base path stripped). */
+		pathname: router.stripBasePath(state.location.pathname),
+	}), [params, matches, depth, state.isPending, state.location.pathname, router])
 }
 
 /**
  * Hook to get the Navigation API state for the current entry.
  */
 export function useNavigationState<T = unknown>(): T | undefined {
-  const context = useRouteContext();
-  return context.state.navigationState as T | undefined;
+	const context = useRouteContext()
+	return context.state.navigationState as T | undefined
 }
 
 /**
  * Hook to get the current RouterState.
  */
 export function useRouterState(): RouterState {
-  const context = useRouteContext();
-  return context.state;
+	const context = useRouteContext()
+	return context.state
 }
 
 // ─── Blocker ─────────────────────────────────────────────────────────────────
 
 export interface BlockerState {
-  /** Whether a navigation is currently blocked. */
-  state: 'idle' | 'blocked';
-  /** Allow the blocked navigation to proceed. */
-  proceed: () => void;
-  /** Cancel the blocked navigation and stay on the current page. */
-  reset: () => void;
+	/** Whether a navigation is currently blocked. */
+	state: 'idle' | 'blocked'
+	/** Allow the blocked navigation to proceed. */
+	proceed: () => void
+	/** Cancel the blocked navigation and stay on the current page. */
+	reset: () => void
 }
 
 /**
@@ -167,41 +160,41 @@ export interface BlockerState {
  * ```
  */
 export function useBlocker(when: boolean): BlockerState {
-  const router = useRouter();
-  const [state, setState] = useState<'idle' | 'blocked'>('idle');
-  const resolverRef = useRef<((proceed: boolean) => void) | null>(null);
+	const router = useRouter()
+	const [state, setState] = useState<'idle' | 'blocked'>('idle')
+	const resolverRef = useRef<((proceed: boolean) => void) | null>(null)
 
-  const blockerFn = useCallback((): Promise<boolean> => {
-    return new Promise((resolve) => {
-      resolverRef.current = resolve;
-      setState('blocked');
-    });
-  }, []);
+	const blockerFn = useCallback((): Promise<boolean> => {
+		return new Promise((resolve) => {
+			resolverRef.current = resolve
+			setState('blocked')
+		})
+	}, [])
 
-  useEffect(() => {
-    if (!when) return;
-    const cleanup = router.addBlocker(blockerFn);
-    return () => {
-      cleanup();
-      // If there's a pending blocker when unmounting, auto-proceed
-      if (resolverRef.current) {
-        resolverRef.current(true);
-        resolverRef.current = null;
-      }
-    };
-  }, [router, when, blockerFn]);
+	useEffect(() => {
+		if (!when) return
+		const cleanup = router.addBlocker(blockerFn)
+		return () => {
+			cleanup()
+			// If there's a pending blocker when unmounting, auto-proceed
+			if (resolverRef.current) {
+				resolverRef.current(true)
+				resolverRef.current = null
+			}
+		}
+	}, [router, when, blockerFn])
 
-  const proceed = useCallback(() => {
-    resolverRef.current?.(true);
-    resolverRef.current = null;
-    setState('idle');
-  }, []);
+	const proceed = useCallback(() => {
+		resolverRef.current?.(true)
+		resolverRef.current = null
+		setState('idle')
+	}, [])
 
-  const reset = useCallback(() => {
-    resolverRef.current?.(false);
-    resolverRef.current = null;
-    setState('idle');
-  }, []);
+	const reset = useCallback(() => {
+		resolverRef.current?.(false)
+		resolverRef.current = null
+		setState('idle')
+	}, [])
 
-  return { state, proceed, reset };
+	return { state, proceed, reset }
 }

@@ -1,0 +1,8 @@
+{
+	"files": [],
+	"references": [
+		{ "path": "packages/buzola" },
+		{ "path": "packages/vite-plugin" },
+		{ "path": "playground" }
+	]
+}

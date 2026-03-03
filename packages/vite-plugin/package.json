@@ -1,22 +1,22 @@
 {
-  "name": "@buzola/vite-plugin",
-  "version": "0.0.1",
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    }
-  },
-  "dependencies": {
-    "buzola": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/node": "^25.3.3",
-    "@types/bun": "latest",
-    "typescript": "^5.7.0",
-    "vite": "^6.0.0"
-  }
+	"name": "@buzola/vite-plugin",
+	"version": "0.0.1",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"dependencies": {
+		"buzola": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "^25.3.3",
+		"@types/bun": "latest",
+		"typescript": "^5.7.0",
+		"vite": "^6.0.0"
+	}
 }
