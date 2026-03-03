@@ -19,6 +19,12 @@ export interface BuzolaPluginOptions {
 	 * The module must export `routes` as the result of `defineRoutes()`.
 	 */
 	routeConfigFile?: string
+	/**
+	 * Parameter names that should be persistent across navigations.
+	 * When set, generates a BuzolaPersistentParams type augmentation
+	 * so these params become optional in Link and navigate() calls.
+	 */
+	persistentParams?: string[]
 }
 
 const VIRTUAL_MODULE_ID = 'virtual:buzola/routes'
@@ -45,6 +51,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		routesDir: routesDirOption = 'src/routes',
 		output: outputOption = 'src/buzola.gen.ts',
 		routeConfigFile: routeConfigFileOption,
+		persistentParams: persistentParamsOption,
 	} = options
 
 	const isConfigMode = !!routeConfigFileOption
@@ -62,6 +69,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 			tree,
 			routesDir,
 			outputPath,
+			persistentParams: persistentParamsOption,
 		})
 
 		return writeIfChanged(outputPath, code)
@@ -87,7 +95,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		}
 
 		const routes = collectConfigRoutePaths(routeTree)
-		const code = generateConfigTypeAugmentation(routes)
+		const code = generateConfigTypeAugmentation(routes, persistentParamsOption)
 
 		return writeIfChanged(outputPath, code)
 	}

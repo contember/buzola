@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import type { NavigateOptions, RegisteredParams, RegisteredPath } from '../engine/types.js'
+import type { EffectiveParams, NavigateOptions, RegisteredPath } from '../engine/types.js'
 import { useRouter, useRouterState } from './hooks.js'
 
 // ─── Link props type — always type-safe via template literal inference ───────
@@ -24,10 +24,11 @@ type LinkPropsBase = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>
 	activeExact?: boolean
 }
 
-export type LinkProps<P extends RegisteredPath = RegisteredPath> =
+export type LinkProps<P extends RegisteredPath = RegisteredPath> = [keyof EffectiveParams<P>] extends [never]
+	? LinkPropsBase & { to: P; params?: never }
 	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-	{} extends RegisteredParams<P> ? LinkPropsBase & { to: P; params?: never }
-		: LinkPropsBase & { to: P; params: RegisteredParams<P> }
+	: {} extends EffectiveParams<P> ? LinkPropsBase & { to: P; params?: EffectiveParams<P> }
+	: LinkPropsBase & { to: P; params: EffectiveParams<P> }
 
 /**
  * Type-safe link component.
@@ -53,12 +54,13 @@ export function Link<P extends RegisteredPath>(props: LinkProps<P>): React.React
 	const router = useRouter()
 	const routerState = useRouterState()
 
-	const href = router.buildPath(to, params)
+	const resolvedParams = router.resolveParams(to, params)
+	const href = router.buildPath(to, resolvedParams)
 	const needsProgrammaticNav = state !== undefined || replace || viewTransition || resetScroll === false
 
 	// Active detection: compare route paths (without basePath)
 	const currentPath = router.stripBasePath(routerState.location.pathname)
-	const targetPath = params ? router.stripBasePath(href) : to
+	const targetPath = router.stripBasePath(href)
 	const isExact = currentPath === targetPath
 	const isPrefix = targetPath !== '/' && currentPath.startsWith(targetPath + '/')
 	const isActive = isExact || (!activeExact && isPrefix)
@@ -74,13 +76,13 @@ export function Link<P extends RegisteredPath>(props: LinkProps<P>): React.React
 			if (needsProgrammaticNav) {
 				e.preventDefault()
 				router.navigate(
-					params ? router.stripBasePath(href) : to,
+					router.stripBasePath(href),
 					{ replace, state, viewTransition, resetScroll } as NavigateOptions,
 				)
 			}
 			// Otherwise, let the native <a> click through — Navigation API will intercept it
 		},
-		[onClick, needsProgrammaticNav, router, href, to, params, replace, state, viewTransition, resetScroll],
+		[onClick, needsProgrammaticNav, router, href, replace, state, viewTransition, resetScroll],
 	)
 
 	return (

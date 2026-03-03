@@ -29,6 +29,14 @@ export type ParamsForPath<T extends string> = [ExtractParamNames<T>] extends [ne
 export interface BuzolaRouteMap {}
 
 /**
+ * Module augmentation point for persistent parameters.
+ * Vite plugin generates declarations that extend this interface.
+ * Keys listed here are automatically carried over between navigations.
+ */
+// biome-ignore lint/suspicious/noEmptyInterface: declaration merging
+export interface BuzolaPersistentParams {}
+
+/**
  * Registered route paths from BuzolaRouteMap.
  */
 export type RegisteredPath = keyof BuzolaRouteMap & string
@@ -37,6 +45,14 @@ export type RegisteredPath = keyof BuzolaRouteMap & string
  * Get the params type for a registered path.
  */
 export type RegisteredParams<P extends keyof BuzolaRouteMap> = BuzolaRouteMap[P]
+
+/**
+ * Effective params for a route — persistent params become optional.
+ * When BuzolaPersistentParams is empty (default), collapses to BuzolaRouteMap[P].
+ */
+export type EffectiveParams<P extends keyof BuzolaRouteMap> =
+	& Omit<BuzolaRouteMap[P], keyof BuzolaPersistentParams & string>
+	& Partial<Pick<BuzolaRouteMap[P], keyof BuzolaPersistentParams & string & keyof BuzolaRouteMap[P]>>
 
 // ─── Route configuration ────────────────────────────────────────────────────
 

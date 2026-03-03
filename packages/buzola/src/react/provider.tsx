@@ -10,8 +10,8 @@ export type BuzolaProviderProps =
 		children?: React.ReactNode
 	}
 	& (
-		| { router: Router; routes?: never }
-		| { router?: never; routes: RouteNode[] }
+		| { router: Router; routes?: never; persistentParams?: never }
+		| { router?: never; routes: RouteNode[]; persistentParams?: () => Record<string, string> }
 	)
 
 /**
@@ -21,7 +21,11 @@ export type BuzolaProviderProps =
 export function BuzolaProvider({ routes, children, ...props }: BuzolaProviderProps): React.ReactElement {
 	const routerRef = useRef<Router | undefined>(props.router)
 	if (!routerRef.current) {
-		routerRef.current = new Router({ routes: routes!, adapter: createBrowserNavigationAdapter() })
+		routerRef.current = new Router({
+			routes: routes!,
+			adapter: createBrowserNavigationAdapter(),
+			persistentParams: props.persistentParams,
+		})
 	}
 	const router = routerRef.current
 	const subscribe = useCallback((cb: () => void) => router.subscribe(cb), [router])

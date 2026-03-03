@@ -14,7 +14,9 @@ export type { MemoryNavigationAdapterOptions } from './engine/navigation-adapter
 export type {
 	BlockerFn,
 	BuzolaNavigateEvent,
+	BuzolaPersistentParams,
 	BuzolaRouteMap,
+	EffectiveParams,
 	GuardContext,
 	GuardRedirect,
 	NavigateOptions,

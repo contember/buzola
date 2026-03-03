@@ -30,6 +30,11 @@ export interface RouterOptions {
 	 * for navigation and strips it for matching.
 	 */
 	basePath?: string
+	/**
+	 * Callback that returns fallback values for persistent parameters.
+	 * Used when a persistent param is not explicitly provided and not present in the current URL.
+	 */
+	persistentParams?: () => Record<string, string>
 }
 
 /**
@@ -41,6 +46,7 @@ export class Router {
 	private adapter: NavigationAdapter
 	private viewTransitions: boolean
 	private readonly _basePath: string
+	private readonly persistentParamsFn?: () => Record<string, string>
 	private subscribers = new Set<RouterSubscriber>()
 	private state: RouterState
 	private navigationId = 0
@@ -54,6 +60,7 @@ export class Router {
 		this.adapter = options.adapter
 		this.viewTransitions = options.viewTransitions ?? false
 		this._basePath = options.basePath ? options.basePath.replace(/\/$/, '') : ''
+		this.persistentParamsFn = options.persistentParams
 
 		// Initialize state from current URL
 		const url = this.adapter.getCurrentURL()
@@ -273,6 +280,60 @@ export class Router {
 			return pathname.slice(this._basePath.length) || '/'
 		}
 		return pathname
+	}
+
+	/**
+	 * Resolve params for a route pattern by merging:
+	 * 1. Explicitly provided params (highest priority)
+	 * 2. Current URL match params
+	 * 3. persistentParams() callback (fallback)
+	 *
+	 * Only fills params that are present in the target pattern.
+	 */
+	resolveParams(pattern: string, explicitParams?: Record<string, string>): Record<string, string> {
+		const paramNames = this.extractParamNames(pattern)
+		if (paramNames.length === 0) return {}
+
+		const currentParams = this.getCurrentParams()
+		const fallbackParams = this.persistentParamsFn?.() ?? {}
+		const result: Record<string, string> = {}
+
+		for (const name of paramNames) {
+			const value = explicitParams?.[name] ?? currentParams[name] ?? fallbackParams[name]
+			if (value !== undefined) {
+				result[name] = value
+			}
+		}
+
+		return result
+	}
+
+	/**
+	 * Extract parameter names from a route pattern.
+	 * "/users/:userId/posts/:postId" → ["userId", "postId"]
+	 * "/:lang/users/:userId+" → ["lang", "userId"]
+	 */
+	private extractParamNames(pattern: string): string[] {
+		const names: string[] = []
+		for (const segment of pattern.split('/')) {
+			if (segment.startsWith(':')) {
+				// Strip catch-all suffix (+)
+				const name = segment.endsWith('+') ? segment.slice(1, -1) : segment.slice(1)
+				names.push(name)
+			}
+		}
+		return names
+	}
+
+	/**
+	 * Get merged params from all current route matches.
+	 */
+	private getCurrentParams(): Record<string, string> {
+		const params: Record<string, string> = {}
+		for (const match of this.state.matches) {
+			Object.assign(params, match.params)
+		}
+		return params
 	}
 
 	/**

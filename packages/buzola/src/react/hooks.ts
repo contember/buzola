@@ -1,6 +1,6 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Router } from '../engine/router'
-import type { NavigateOptions, RegisteredParams, RegisteredPath, RouterState, StandardSchema } from '../engine/types'
+import type { EffectiveParams, NavigateOptions, RegisteredPath, RouterState, StandardSchema } from '../engine/types'
 import { RouteContext, RouterContext } from './context'
 
 /**
@@ -28,12 +28,14 @@ function useRouteContext() {
 /**
  * Type-safe navigation function.
  * Infers param requirements from the path literal.
+ * Persistent params are optional — resolved from current URL or fallback.
  */
 type NavigateFn = <P extends RegisteredPath>(
 	to: P,
-	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-	...args: {} extends RegisteredParams<P> ? [options?: NavigateOptions]
-		: [options: NavigateOptions & { params: RegisteredParams<P> }]
+	...args: [keyof EffectiveParams<P>] extends [never] ? [options?: NavigateOptions]
+		// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+		: {} extends EffectiveParams<P> ? [options?: NavigateOptions & { params?: EffectiveParams<P> }]
+		: [options: NavigateOptions & { params: EffectiveParams<P> }]
 ) => void
 
 /**
@@ -44,8 +46,9 @@ export function useNavigate(): NavigateFn {
 
 	return useCallback(
 		(to: string, options?: NavigateOptions & { params?: Record<string, string> }) => {
-			const path = options?.params ? router.buildPath(to, options.params) : to
-			router.navigate(path, options)
+			const resolved = router.resolveParams(to, options?.params)
+			const path = router.buildPath(to, resolved)
+			router.navigate(router.stripBasePath(path), options)
 		},
 		[router],
 	) as NavigateFn

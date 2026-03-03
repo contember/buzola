@@ -45,10 +45,12 @@ cd playground && bun run dev
 ### Core package (`packages/buzola`)
 
 Two export paths:
+
 - `buzola` — Engine: `Router` class, `matchRoutes`, `buildRouteTree`, `NavigationAdapter`, route config types
 - `buzola/react` — React layer: `BuzolaProvider`, `Link`, `Outlet`, hooks (`useRouter`, `useNavigate`, `useParams`, `useSearchParams`, `useRoute`, `useBlocker`)
 
 Key engine modules in `src/engine/`:
+
 - `router.ts` — Central `Router` class managing state, navigation, subscriptions
 - `matcher.ts` — URL matching via `URLPattern` API
 - `route-tree.ts` — Builds `RouteNode` tree from flat route configs
@@ -60,12 +62,14 @@ Type safety works through TypeScript module augmentation of `BuzolaRouteMap` —
 ### Vite plugin (`packages/vite-plugin`)
 
 Two modes:
+
 1. **File-based** (default) — Scans `src/routes/`, generates route tree as virtual module `virtual:buzola/routes`
 2. **Config-based** (`routeConfigFile` option) — Parses explicit route config, only generates type augmentation
 
 File conventions: `layout.tsx`, `index.tsx`, `[param].tsx`, `[...slug].tsx`, `(group)/`
 
 Key modules in `src/`:
+
 - `plugin.ts` — Vite plugin entry
 - `conventions.ts` — File naming convention parser
 - `generator/scanner.ts` — FS scanning

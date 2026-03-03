@@ -8,10 +8,14 @@ function dummyComponent() {
 	return null
 }
 
-function createRouter(configs: RouteConfig[], initialURL = 'http://localhost/') {
+function createRouter(
+	configs: RouteConfig[],
+	initialURL = 'http://localhost/',
+	options?: { persistentParams?: () => Record<string, string> },
+) {
 	const routes = buildRouteTree(configs)
 	const adapter = createMemoryNavigationAdapter({ initialURL })
-	const router = new Router({ routes, adapter })
+	const router = new Router({ routes, adapter, ...options })
 	router.start()
 	return { router, adapter }
 }
@@ -329,5 +333,92 @@ describe('Router', () => {
 		expect(routes[0].id).toBe('route:/:layout')
 		expect(routes[0].children[0].id).toBe('route:/')
 		expect(routes[0].children[1].id).toBe('route:/about')
+	})
+})
+
+describe('Router.resolveParams', () => {
+	it('returns explicit params only when no persistent params configured', () => {
+		const { router } = createRouter([
+			{ path: '/users/:userId', component: dummyComponent },
+		])
+
+		const result = router.resolveParams('/users/:userId', { userId: '42' })
+		expect(result).toEqual({ userId: '42' })
+	})
+
+	it('resolves params from current URL match', () => {
+		const { router } = createRouter([
+			{ path: '/:lang/users', component: dummyComponent },
+		], 'http://localhost/en/users')
+
+		const result = router.resolveParams('/:lang/users')
+		expect(result).toEqual({ lang: 'en' })
+	})
+
+	it('explicit params override current match', () => {
+		const { router } = createRouter([
+			{ path: '/:lang/users', component: dummyComponent },
+		], 'http://localhost/en/users')
+
+		const result = router.resolveParams('/:lang/users', { lang: 'cs' })
+		expect(result).toEqual({ lang: 'cs' })
+	})
+
+	it('falls back to persistentParams callback', () => {
+		const { router } = createRouter(
+			[
+				{ path: '/admin', component: dummyComponent },
+				{ path: '/:lang/users', component: dummyComponent },
+			],
+			'http://localhost/admin',
+			{ persistentParams: () => ({ lang: 'en' }) },
+		)
+
+		const result = router.resolveParams('/:lang/users')
+		expect(result).toEqual({ lang: 'en' })
+	})
+
+	it('current match overrides callback', () => {
+		const { router } = createRouter(
+			[{ path: '/:lang/users', component: dummyComponent }],
+			'http://localhost/cs/users',
+			{ persistentParams: () => ({ lang: 'en' }) },
+		)
+
+		const result = router.resolveParams('/:lang/users')
+		expect(result).toEqual({ lang: 'cs' })
+	})
+
+	it('only fills params present in target pattern', () => {
+		const { router } = createRouter(
+			[{ path: '/:lang/users/:userId', component: dummyComponent }],
+			'http://localhost/en/users/42',
+			{ persistentParams: () => ({ lang: 'en' }) },
+		)
+
+		// Target pattern only has :lang, not :userId
+		const result = router.resolveParams('/:lang/about')
+		expect(result).toEqual({ lang: 'en' })
+	})
+
+	it('handles mixed persistent and non-persistent params', () => {
+		const { router } = createRouter(
+			[{ path: '/:lang/users', component: dummyComponent }],
+			'http://localhost/en/users',
+			{ persistentParams: () => ({ lang: 'en' }) },
+		)
+
+		const result = router.resolveParams('/:lang/users/:userId', { userId: '42' })
+		expect(result).toEqual({ lang: 'en', userId: '42' })
+	})
+
+	it('returns empty object when pattern has no params', () => {
+		const { router } = createRouter(
+			[{ path: '/about', component: dummyComponent }],
+			'http://localhost/about',
+		)
+
+		const result = router.resolveParams('/about')
+		expect(result).toEqual({})
 	})
 })
