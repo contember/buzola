@@ -1,7 +1,5 @@
 import React from 'react';
 import {
-  Router,
-  createBrowserNavigationAdapter,
   BuzolaProvider,
   Outlet,
   Link,
@@ -118,9 +116,6 @@ export function NotFound() {
 
 // ─── App ────────────────────────────────────────────────────────────────────
 
-const adapter = createBrowserNavigationAdapter();
-const router = new Router({ routes, adapter });
-
 export function App() {
-  return <BuzolaProvider router={router} />;
+  return <BuzolaProvider routes={routes} />;
 }
