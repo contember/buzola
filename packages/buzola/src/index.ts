@@ -14,16 +14,15 @@ export type { MemoryNavigationAdapterOptions } from './engine/navigation-adapter
 export type {
 	BlockerFn,
 	BuzolaNavigateEvent,
+	BuzolaPageMap,
 	BuzolaPersistentParams,
-	BuzolaRouteMap,
-	EffectiveParams,
+	EffectivePageParams,
 	GuardContext,
 	GuardRedirect,
 	NavigateOptions,
 	NavigationAdapter,
-	ParamsForPath,
-	RegisteredParams,
-	RegisteredPath,
+	PageParams,
+	RegisteredPage,
 	RouteComponent,
 	RouteConfig,
 	RouteGuard,
@@ -34,9 +33,12 @@ export type {
 	StandardSchema,
 } from './engine/types'
 
+// ─── Schema ──────────────────────────────────────────────────────────────────
+export { s } from './engine/schema'
+
 // ─── Route definition ───────────────────────────────────────────────────────
-export { defineRoute, defineRoutes } from './define/define-routes'
-export type { DefineRouteOptions, RouteBuilderFn, RouteDefinitionOptions } from './define/define-routes'
+export { createPage } from './define/create-page'
+export type { PageDefinition, PageProps } from './define/create-page'
 
 // ─── React (re-export from subpath) ─────────────────────────────────────────
 export {

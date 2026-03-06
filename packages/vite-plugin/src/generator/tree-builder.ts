@@ -1,6 +1,20 @@
 import * as path from 'node:path'
 import { parseDirName, parseFileName } from '../conventions'
+import type { ExtractedPage } from './page-extractor'
+import { extractPages } from './page-extractor'
 import type { ScannedFile } from './scanner'
+
+/**
+ * Page export info attached to a file route node.
+ */
+export interface PageExportInfo {
+	/** Page ID (e.g., "project/detail"). */
+	pageId: string
+	/** Route pattern (e.g., "/project/:id"). */
+	routePattern: string
+	/** Param info extracted from the page schema. */
+	params: { name: string; optional: boolean }[]
+}
 
 /**
  * A node in the file-based route tree (before compilation into RouteNode).
@@ -22,12 +36,15 @@ export interface FileRouteNode {
 	isCatchAll: boolean
 	/** Dynamic parameter names contributed by this node and its ancestor directories. */
 	paramNames: string[]
+	/** Page exports discovered in this file. */
+	pageExports?: PageExportInfo[]
 	/** Children nodes. */
 	children: FileRouteNode[]
 }
 
 /**
  * Build a route tree from scanned files.
+ * Also extracts createPage() metadata for page-centric routing.
  */
 export function buildFileRouteTree(files: ScannedFile[]): FileRouteNode[] {
 	const root: FileRouteNode = {
@@ -104,6 +121,7 @@ function insertFile(root: FileRouteNode, file: ScannedFile): void {
 	} else if (fileInfo.isIndex) {
 		// Index: add as child
 		const fullPath = currentPath || '/'
+		const pageExports = extractPageExports(file, dirs, '', true)
 		const indexNode: FileRouteNode = {
 			segment: '',
 			fullPath,
@@ -113,6 +131,7 @@ function insertFile(root: FileRouteNode, file: ScannedFile): void {
 			isPathlessGroup: false,
 			isCatchAll: false,
 			paramNames: accumulatedParams,
+			pageExports,
 			children: [],
 		}
 		current.children.push(indexNode)
@@ -122,6 +141,7 @@ function insertFile(root: FileRouteNode, file: ScannedFile): void {
 		const fileParams = fileInfo.paramName
 			? [...accumulatedParams, fileInfo.paramName]
 			: accumulatedParams
+		const pageExports = extractPageExports(file, dirs, fileName, false)
 		const routeNode: FileRouteNode = {
 			segment: fileInfo.segment,
 			fullPath,
@@ -131,10 +151,99 @@ function insertFile(root: FileRouteNode, file: ScannedFile): void {
 			isPathlessGroup: false,
 			isCatchAll: fileInfo.isCatchAll,
 			paramNames: fileParams,
+			pageExports,
 			children: [],
 		}
 		current.children.push(routeNode)
 	}
+}
+
+/**
+ * Derive page ID from file path and export name.
+ * Convention: strip routesDir prefix, strip extension, append /exportName (unless default).
+ *
+ * Examples:
+ * - File: project.tsx, export: detail → "project/detail"
+ * - File: project.tsx, export: default → "project"
+ * - File: project/detail.tsx, export: default → "project/detail"
+ * - File: index.tsx, export: default → "index"
+ */
+function derivePageId(dirs: string[], fileName: string, isIndex: boolean, exportName: string): string {
+	const segments = [...dirs]
+
+	if (isIndex) {
+		// index files: page ID is just the directory path
+		// If at root: "index"
+		if (segments.length === 0) {
+			return exportName === 'default' ? 'index' : `index/${exportName}`
+		}
+		const base = segments.join('/')
+		return exportName === 'default' ? base : `${base}/${exportName}`
+	}
+
+	// Regular files
+	segments.push(fileName)
+	const base = segments.join('/')
+
+	return exportName === 'default' ? base : `${base}/${exportName}`
+}
+
+/**
+ * Derive route pattern for a page without explicit .route().
+ * Uses the file path convention.
+ */
+function deriveRoutePattern(dirs: string[], fileName: string, isIndex: boolean): string {
+	const segments: string[] = []
+
+	for (const dir of dirs) {
+		const dirInfo = parseDirName(dir)
+		if (!dirInfo.isPathlessGroup && dirInfo.segment) {
+			segments.push(dirInfo.segment)
+		}
+	}
+
+	if (!isIndex) {
+		const fileInfo = parseFileName(fileName)
+		if (fileInfo.segment) {
+			segments.push(fileInfo.segment)
+		}
+	}
+
+	return '/' + segments.join('/')
+}
+
+/**
+ * Extract page exports and their metadata from a source file.
+ */
+function extractPageExports(
+	file: ScannedFile,
+	dirs: string[],
+	fileName: string,
+	isIndex: boolean,
+): PageExportInfo[] | undefined {
+	let pages: ExtractedPage[]
+	try {
+		pages = extractPages(file.absolutePath)
+	} catch {
+		return undefined
+	}
+
+	if (pages.length === 0) return undefined
+
+	const result: PageExportInfo[] = []
+
+	for (const page of pages) {
+		const pageId = derivePageId(dirs, fileName, isIndex, page.exportName)
+		const routePattern = page.route ?? deriveRoutePattern(dirs, fileName, isIndex)
+
+		result.push({
+			pageId,
+			routePattern,
+			params: page.params,
+		})
+	}
+
+	return result
 }
 
 function joinPath(parent: string, child: string): string {

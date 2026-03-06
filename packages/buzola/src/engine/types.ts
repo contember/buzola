@@ -1,32 +1,14 @@
 import type { ComponentType, LazyExoticComponent } from 'react'
 
-// ─── Template literal type extraction ───────────────────────────────────────
-
-/**
- * Extract dynamic parameter names from a route path pattern.
- * "/users/:userId/posts/:postId" → "userId" | "postId"
- */
-type ExtractParamNames<T extends string> = T extends `${string}:${infer Param}/${infer Rest}` ? Param | ExtractParamNames<Rest>
-	: T extends `${string}:${infer Param}` ? Param
-	: never
-
-/**
- * Extract params object type from a route path.
- * ParamsForPath<"/users/:userId"> = { userId: string }
- * ParamsForPath<"/about"> = {}
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type ParamsForPath<T extends string> = [ExtractParamNames<T>] extends [never] ? {}
-	: Record<ExtractParamNames<T>, string>
-
 // ─── Module augmentation interface ──────────────────────────────────────────
 
 /**
- * Module augmentation point for type-safe routing.
+ * Module augmentation point for type-safe page-centric routing.
  * Vite plugin generates declarations that extend this interface.
+ * Maps page IDs to their params types.
  */
 // biome-ignore lint/suspicious/noEmptyInterface: declaration merging
-export interface BuzolaRouteMap {}
+export interface BuzolaPageMap {}
 
 /**
  * Module augmentation point for persistent parameters.
@@ -37,22 +19,22 @@ export interface BuzolaRouteMap {}
 export interface BuzolaPersistentParams {}
 
 /**
- * Registered route paths from BuzolaRouteMap.
+ * Registered page IDs from BuzolaPageMap.
  */
-export type RegisteredPath = keyof BuzolaRouteMap & string
+export type RegisteredPage = keyof BuzolaPageMap & string
 
 /**
- * Get the params type for a registered path.
+ * Get the params type for a registered page.
  */
-export type RegisteredParams<P extends keyof BuzolaRouteMap> = BuzolaRouteMap[P]
+export type PageParams<P extends keyof BuzolaPageMap> = BuzolaPageMap[P]
 
 /**
- * Effective params for a route — persistent params become optional.
- * When BuzolaPersistentParams is empty (default), collapses to BuzolaRouteMap[P].
+ * Effective params for a page — persistent params become optional.
+ * When BuzolaPersistentParams is empty (default), collapses to BuzolaPageMap[P].
  */
-export type EffectiveParams<P extends keyof BuzolaRouteMap> =
-	& Omit<BuzolaRouteMap[P], keyof BuzolaPersistentParams & string>
-	& Partial<Pick<BuzolaRouteMap[P], keyof BuzolaPersistentParams & string & keyof BuzolaRouteMap[P]>>
+export type EffectivePageParams<P extends keyof BuzolaPageMap> =
+	& Omit<BuzolaPageMap[P], keyof BuzolaPersistentParams & string>
+	& Partial<Pick<BuzolaPageMap[P], keyof BuzolaPersistentParams & string & keyof BuzolaPageMap[P]>>
 
 // ─── Route configuration ────────────────────────────────────────────────────
 

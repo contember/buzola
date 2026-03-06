@@ -10,8 +10,13 @@ export type BuzolaProviderProps =
 		children?: React.ReactNode
 	}
 	& (
-		| { router: Router; routes?: never; persistentParams?: never }
-		| { router?: never; routes: RouteNode[]; persistentParams?: () => Record<string, string> }
+		| { router: Router; routes?: never; persistentParams?: never; pageRegistry?: never }
+		| {
+			router?: never
+			routes: RouteNode[]
+			persistentParams?: () => Record<string, string>
+			pageRegistry?: Record<string, string>
+		}
 	)
 
 /**
@@ -25,6 +30,7 @@ export function BuzolaProvider({ routes, children, ...props }: BuzolaProviderPro
 			routes: routes!,
 			adapter: createBrowserNavigationAdapter(),
 			persistentParams: props.persistentParams,
+			pageRegistry: props.pageRegistry,
 		})
 	}
 	const router = routerRef.current

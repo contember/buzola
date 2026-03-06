@@ -1,6 +1,6 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Router } from '../engine/router'
-import type { EffectiveParams, NavigateOptions, RegisteredPath, RouterState, StandardSchema } from '../engine/types'
+import type { EffectivePageParams, NavigateOptions, RegisteredPage, RouterState, StandardSchema } from '../engine/types'
 import { RouteContext, RouterContext } from './context'
 
 /**
@@ -27,28 +27,27 @@ function useRouteContext() {
 
 /**
  * Type-safe navigation function.
- * Infers param requirements from the path literal.
+ * Uses page IDs instead of URL patterns.
  * Persistent params are optional — resolved from current URL or fallback.
  */
-type NavigateFn = <P extends RegisteredPath>(
+type NavigateFn = <P extends RegisteredPage>(
 	to: P,
-	...args: [keyof EffectiveParams<P>] extends [never] ? [options?: NavigateOptions]
+	...args: [keyof EffectivePageParams<P>] extends [never] ? [options?: NavigateOptions]
 		// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-		: {} extends EffectiveParams<P> ? [options?: NavigateOptions & { params?: EffectiveParams<P> }]
-		: [options: NavigateOptions & { params: EffectiveParams<P> }]
+		: {} extends EffectivePageParams<P> ? [options?: NavigateOptions & { params?: EffectivePageParams<P> }]
+		: [options: NavigateOptions & { params: EffectivePageParams<P> }]
 ) => void
 
 /**
  * Hook to get a type-safe navigate function.
+ * Navigates using page IDs — the router looks up the route pattern from the page registry.
  */
 export function useNavigate(): NavigateFn {
 	const router = useRouter()
 
 	return useCallback(
 		(to: string, options?: NavigateOptions & { params?: Record<string, string> }) => {
-			const resolved = router.resolveParams(to, options?.params)
-			const path = router.buildPath(to, resolved)
-			router.navigate(router.stripBasePath(path), options)
+			router.navigateToPage(to, options?.params, options)
 		},
 		[router],
 	) as NavigateFn
