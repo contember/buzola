@@ -112,7 +112,7 @@ function collectPages(nodes: FileRouteNode[], parentPath = ''): PageInfo[] {
 	const result: PageInfo[] = []
 
 	for (const node of nodes) {
-		if (node.filePath && !node.isLayout) {
+		if (node.filePath && !node.isLayout && !node.isNotFound) {
 			if (node.pageExports) {
 				for (const exp of node.pageExports) {
 					result.push({

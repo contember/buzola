@@ -7,7 +7,7 @@ describe('isRouteFile', () => {
 	})
 
 	it('accepts .jsx files', () => {
-		expect(isRouteFile('layout.jsx')).toBe(true)
+		expect(isRouteFile('_layout.jsx')).toBe(true)
 	})
 
 	it('rejects .css files', () => {
@@ -17,8 +17,14 @@ describe('isRouteFile', () => {
 
 describe('parseFileName', () => {
 	it('parses layout files', () => {
-		const result = parseFileName('layout')
+		const result = parseFileName('_layout')
 		expect(result.isLayout).toBe(true)
+		expect(result.segment).toBe('')
+	})
+
+	it('parses not-found files', () => {
+		const result = parseFileName('_404')
+		expect(result.isNotFound).toBe(true)
 		expect(result.segment).toBe('')
 	})
 
@@ -33,6 +39,7 @@ describe('parseFileName', () => {
 		expect(result.segment).toBe('about')
 		expect(result.isLayout).toBe(false)
 		expect(result.isIndex).toBe(false)
+		expect(result.isNotFound).toBe(false)
 	})
 
 	it('treats bracket names as plain file names', () => {
@@ -40,6 +47,7 @@ describe('parseFileName', () => {
 		expect(result.segment).toBe('[userId]')
 		expect(result.isLayout).toBe(false)
 		expect(result.isIndex).toBe(false)
+		expect(result.isNotFound).toBe(false)
 	})
 })
 
@@ -71,7 +79,7 @@ describe('parseRouteFile', () => {
 	})
 
 	it('parses nested layout', () => {
-		const result = parseRouteFile('users/layout.tsx')
+		const result = parseRouteFile('users/_layout.tsx')
 		expect(result.isLayout).toBe(true)
 		expect(result.segment).toBe('users')
 	})

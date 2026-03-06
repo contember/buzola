@@ -66,7 +66,7 @@ Two modes:
 1. **File-based** (default) — Scans `src/routes/`, generates route tree as virtual module `virtual:buzola/routes`
 2. **Config-based** (`routeConfigFile` option) — Parses explicit route config, only generates type augmentation
 
-File conventions: `layout.tsx`, `index.tsx`, `[param].tsx`, `[...slug].tsx`, `(group)/`
+File conventions: `_layout.tsx`, `_404.tsx`, `index.tsx`, `[param].tsx`, `[...slug].tsx`, `(group)/` — files prefixed with `_` are special convention files
 
 Key modules in `src/`:
 

@@ -27,9 +27,9 @@ describe('buildFileRouteTree', () => {
 
 	it('builds nested routes with layouts', async () => {
 		const files: ScannedFile[] = [
-			{ absolutePath: '/app/src/routes/layout.tsx', relativePath: 'layout.tsx' },
+			{ absolutePath: '/app/src/routes/_layout.tsx', relativePath: '_layout.tsx' },
 			{ absolutePath: '/app/src/routes/index.tsx', relativePath: 'index.tsx' },
-			{ absolutePath: '/app/src/routes/users/layout.tsx', relativePath: 'users/layout.tsx' },
+			{ absolutePath: '/app/src/routes/users/_layout.tsx', relativePath: 'users/_layout.tsx' },
 			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
 			{ absolutePath: '/app/src/routes/users/detail.tsx', relativePath: 'users/detail.tsx' },
 		]
@@ -39,7 +39,7 @@ describe('buildFileRouteTree', () => {
 		expect(tree).toHaveLength(1)
 		const rootLayout = tree[0]
 		expect(rootLayout.isLayout).toBe(true)
-		expect(rootLayout.filePath).toBe('/app/src/routes/layout.tsx')
+		expect(rootLayout.filePath).toBe('/app/src/routes/_layout.tsx')
 
 		const rootIndex = rootLayout.children.find(n => n.isIndex)
 		expect(rootIndex).toBeDefined()
@@ -153,51 +153,39 @@ describe('buildFileRouteTree', () => {
 		])
 	})
 
-	it('sorts catch-all routes last', async () => {
+	it('sorts not-found routes last', async () => {
 		const files: ScannedFile[] = [
 			{ absolutePath: '/app/src/routes/about.tsx', relativePath: 'about.tsx' },
-			{ absolutePath: '/app/src/routes/not-found.tsx', relativePath: 'not-found.tsx' },
+			{ absolutePath: '/app/src/routes/_404.tsx', relativePath: '_404.tsx' },
 			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
 		]
 
-		const loader: ModuleLoader = async (p) => {
-			if (p.endsWith('not-found.tsx')) {
-				return {
-					default: {
-						__buzolaPage: true,
-						component: () => null,
-						route: '/:path+',
-						paramsMeta: [{ name: 'path', optional: false }],
-					},
-				}
-			}
-			if (p.endsWith('about.tsx')) {
-				return {
-					default: {
-						__buzolaPage: true,
-						component: () => null,
-						route: '/about',
-						paramsMeta: [],
-					},
-				}
-			}
-			if (p.endsWith('users/index.tsx')) {
-				return {
-					default: {
-						__buzolaPage: true,
-						component: () => null,
-						route: '/users',
-						paramsMeta: [],
-					},
-				}
-			}
-			return {}
-		}
-
-		const tree = await buildFileRouteTree(files, loader)
+		const tree = await buildFileRouteTree(files, emptyLoader)
 		const segments = tree.map(n => n.segment)
 
-		// catch-all (:path+) must be last
-		expect(segments[segments.length - 1]).toBe(':path+')
+		// _404 catch-all must be last
+		expect(segments[segments.length - 1]).toBe(':__notFound+')
+		const notFound = tree.find(n => n.isNotFound)
+		expect(notFound).toBeDefined()
+		expect(notFound!.fullPath).toBe('/:__notFound+')
+	})
+
+	it('handles nested _404 within a directory', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
+			{ absolutePath: '/app/src/routes/users/_404.tsx', relativePath: 'users/_404.tsx' },
+		]
+
+		const tree = await buildFileRouteTree(files, emptyLoader)
+		const users = tree.find(n => n.segment === 'users')
+		expect(users).toBeDefined()
+
+		const notFound = users!.children.find(n => n.isNotFound)
+		expect(notFound).toBeDefined()
+		expect(notFound!.segment).toBe(':__notFound+')
+		expect(notFound!.fullPath).toBe('/users/:__notFound+')
+		expect(notFound!.pageExports).toEqual([
+			{ pageId: 'users/404', routePattern: '/users/:__notFound+', params: [{ name: '__notFound', optional: false }] },
+		])
 	})
 })

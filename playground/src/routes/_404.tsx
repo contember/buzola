@@ -1,9 +1,7 @@
-import { createPage, Link, s } from 'buzola'
+import { createPage, Link } from 'buzola'
 import React from 'react'
 
 export default createPage()
-	.params(s.object({ path: s.string() }))
-	.route('/:path+')
 	.render(() => (
 		<div>
 			<h1>404</h1>

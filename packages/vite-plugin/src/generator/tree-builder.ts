@@ -30,6 +30,8 @@ export interface FileRouteNode {
 	isLayout: boolean
 	/** Whether this is an index route. */
 	isIndex: boolean
+	/** Whether this is a not-found catch-all. */
+	isNotFound: boolean
 	/** Whether this is a pathless group. */
 	isPathlessGroup: boolean
 	/** Page exports discovered in this file. */
@@ -48,6 +50,7 @@ export async function buildFileRouteTree(files: ScannedFile[], moduleLoader: Mod
 		fullPath: '/',
 		isLayout: false,
 		isIndex: false,
+		isNotFound: false,
 		isPathlessGroup: false,
 		children: [],
 	}
@@ -93,6 +96,7 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 				fullPath: segmentPath || '/',
 				isLayout: false,
 				isIndex: false,
+				isNotFound: false,
 				isPathlessGroup: dirInfo.isPathlessGroup,
 				children: [],
 			}
@@ -108,6 +112,27 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 	if (fileInfo.isLayout) {
 		current.isLayout = true
 		current.filePath = file.absolutePath
+	} else if (fileInfo.isNotFound) {
+		const catchAllSegment = ':__notFound+'
+		const fullPath = joinPath(currentPath, catchAllSegment)
+		const pageId = dirs.length === 0 ? '404' : `${dirs.join('/')}/404`
+		const pageExports: PageExportInfo[] = [{
+			pageId,
+			routePattern: fullPath,
+			params: [{ name: '__notFound', optional: false }],
+		}]
+		const notFoundNode: FileRouteNode = {
+			segment: catchAllSegment,
+			fullPath,
+			filePath: file.absolutePath,
+			isLayout: false,
+			isIndex: false,
+			isNotFound: true,
+			isPathlessGroup: false,
+			pageExports,
+			children: [],
+		}
+		current.children.push(notFoundNode)
 	} else if (fileInfo.isIndex) {
 		const fullPath = currentPath || '/'
 		const pageExports = await extractPageExportsFromFile(file, dirs, '', true, currentPath, moduleLoader)
@@ -117,6 +142,7 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 			filePath: file.absolutePath,
 			isLayout: false,
 			isIndex: true,
+			isNotFound: false,
 			isPathlessGroup: false,
 			pageExports,
 			children: [],
@@ -133,6 +159,7 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 			filePath: file.absolutePath,
 			isLayout: false,
 			isIndex: false,
+			isNotFound: false,
 			isPathlessGroup: false,
 			pageExports,
 			children: [],
@@ -238,6 +265,7 @@ function sortChildren(node: FileRouteNode): void {
 
 function sortWeight(node: FileRouteNode): number {
 	if (node.isIndex) return 0
+	if (node.isNotFound) return 4
 	if (node.segment.includes(':') && node.segment.includes('+')) return 3
 	if (node.segment.includes(':')) return 2
 	return 1
