@@ -3,6 +3,7 @@ import { createPage } from '../define/create-page'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter'
 import { buildRouteTree } from '../engine/route-tree'
 import { Router } from '../engine/router'
+import { s } from '../engine/schema'
 import type { RouteConfig, StandardSchema } from '../engine/types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -63,6 +64,16 @@ describe('createPage', () => {
 
 	it('stores route pattern when .route() is called', () => {
 		const page = createPage()
+			.route('/about')
+			.render(({ params }) => null)
+
+		expect(page.route).toBe('/about')
+	})
+
+	it('stores route pattern with params when schema matches', () => {
+		const schema = createSchema((v) => ({ value: v as { id: string } }))
+		const page = createPage()
+			.params(schema)
 			.route('/users/:id')
 			.render(({ params }) => null)
 
@@ -85,6 +96,23 @@ describe('createPage', () => {
 		expect(page.paramsSchema).toBe(schema)
 		expect(page.route).toBe('/project/:id')
 		expect(typeof page.component).toBe('function')
+	})
+
+	it('populates paramsMeta from s.object schema', () => {
+		const page = createPage()
+			.params(s.object({ userId: s.string(), tab: s.optional(s.string()) }))
+			.route('/users/:userId')
+			.render(({ params }) => null)
+
+		expect(page.paramsMeta).toEqual([
+			{ name: 'userId', optional: false },
+			{ name: 'tab', optional: true },
+		])
+	})
+
+	it('paramsMeta is empty when no schema provided', () => {
+		const page = createPage().render(({ params }) => null)
+		expect(page.paramsMeta).toEqual([])
 	})
 
 	it('component is usable as RouteConfig component', () => {

@@ -43,7 +43,9 @@ export function generateRouteModule(options: CodegenOptions): string {
 	// Generate route imports
 	for (const imp of imports) {
 		if (imp.isLazy) {
-			lines.push(`const ${imp.varName} = () => import('${imp.filePath}') as Promise<{ default: ComponentType }>;`)
+			lines.push(
+				`const ${imp.varName} = () => import('${imp.filePath}').then(m => ({ default: m.default.component })) as Promise<{ default: ComponentType }>;`,
+			)
 		} else {
 			lines.push(`import ${imp.varName} from '${imp.filePath}';`)
 		}

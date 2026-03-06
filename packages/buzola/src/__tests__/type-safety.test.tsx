@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
+import { createPage } from '../define/create-page.js'
+import type { StandardSchema } from '../engine/types.js'
 import type { LinkProps } from '../react/link.js'
 
 // Register pages for type-safe testing
@@ -11,6 +13,69 @@ declare module '../engine/types.js' {
 		'users/posts': { userId: string; postId: string }
 	}
 }
+
+// ─── Helper ─────────────────────────────────────────────────────────────────
+
+function mockSchema<T>(): StandardSchema<T> {
+	return { '~standard': { version: 1, vendor: 'test', validate: (v) => ({ value: v as T }) } }
+}
+
+// ─── createPage().route() type safety ───────────────────────────────────────
+
+describe('createPage route type safety', () => {
+	it('allows static route without params', () => {
+		const _page = createPage().route('/about').render(() => null)
+		expect(true).toBe(true)
+	})
+
+	it('rejects dynamic route without params', () => {
+		// @ts-expect-error — :id in route but no .params() defined
+		const _page = createPage().route('/users/:id').render(() => null)
+		expect(true).toBe(true)
+	})
+
+	it('allows dynamic route when param is in schema', () => {
+		const _page = createPage()
+			.params(mockSchema<{ id: string }>())
+			.route('/users/:id')
+			.render(({ params }) => null)
+		expect(true).toBe(true)
+	})
+
+	it('rejects dynamic route when param is not in schema', () => {
+		const _page = createPage()
+			.params(mockSchema<{ userId: string }>())
+			// @ts-expect-error — :id is not a key of { userId: string }
+			.route('/users/:id')
+			.render(({ params }) => null)
+		expect(true).toBe(true)
+	})
+
+	it('allows multiple route params when all are in schema', () => {
+		const _page = createPage()
+			.params(mockSchema<{ userId: string; postId: string }>())
+			.route('/users/:userId/posts/:postId')
+			.render(({ params }) => null)
+		expect(true).toBe(true)
+	})
+
+	it('rejects when one route param is missing from schema', () => {
+		const _page = createPage()
+			.params(mockSchema<{ userId: string }>())
+			// @ts-expect-error — :postId is not in { userId: string }
+			.route('/users/:userId/posts/:postId')
+			.render(({ params }) => null)
+		expect(true).toBe(true)
+	})
+
+	it('allows schema params that are not in route (they become query params)', () => {
+		const _page = createPage()
+			.params(mockSchema<{ userId: string; tab: string }>())
+			.route('/users/:userId')
+			.render(({ params }) => null)
+		expect(true).toBe(true)
+	})
+})
 
 // ─── LinkProps ──────────────────────────────────────────────────────────────
 

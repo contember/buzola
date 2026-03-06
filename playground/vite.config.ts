@@ -4,7 +4,7 @@ import { buzolaPlugin } from '../packages/vite-plugin/src/plugin'
 
 export default defineConfig({
 	plugins: [
-		buzolaPlugin({ routeConfigFile: 'src/routes.ts' }),
+		buzolaPlugin(),
 		react(),
 	],
 })

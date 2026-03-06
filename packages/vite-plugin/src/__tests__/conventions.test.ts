@@ -28,24 +28,18 @@ describe('parseFileName', () => {
 		expect(result.segment).toBe('')
 	})
 
-	it('parses static route files', () => {
+	it('parses regular page files', () => {
 		const result = parseFileName('about')
 		expect(result.segment).toBe('about')
 		expect(result.isLayout).toBe(false)
 		expect(result.isIndex).toBe(false)
 	})
 
-	it('parses dynamic segment files', () => {
+	it('treats bracket names as plain file names', () => {
 		const result = parseFileName('[userId]')
-		expect(result.segment).toBe(':userId')
-		expect(result.paramName).toBe('userId')
-	})
-
-	it('parses catch-all files', () => {
-		const result = parseFileName('[...slug]')
-		expect(result.segment).toBe(':slug+')
-		expect(result.isCatchAll).toBe(true)
-		expect(result.paramName).toBe('slug')
+		expect(result.segment).toBe('[userId]')
+		expect(result.isLayout).toBe(false)
+		expect(result.isIndex).toBe(false)
 	})
 })
 
@@ -56,15 +50,15 @@ describe('parseDirName', () => {
 		expect(result.segment).toBe('')
 	})
 
-	it('parses dynamic directories', () => {
-		const result = parseDirName('[userId]')
-		expect(result.segment).toBe(':userId')
-		expect(result.paramName).toBe('userId')
-	})
-
 	it('parses regular directories', () => {
 		const result = parseDirName('users')
 		expect(result.segment).toBe('users')
+		expect(result.isPathlessGroup).toBe(false)
+	})
+
+	it('treats bracket names as plain directory names', () => {
+		const result = parseDirName('[userId]')
+		expect(result.segment).toBe('[userId]')
 		expect(result.isPathlessGroup).toBe(false)
 	})
 })
@@ -82,9 +76,10 @@ describe('parseRouteFile', () => {
 		expect(result.segment).toBe('users')
 	})
 
-	it('parses dynamic nested file', () => {
-		const result = parseRouteFile('users/[userId].tsx')
-		expect(result.segment).toBe('users/:userId')
-		expect(result.paramName).toBe('userId')
+	it('parses regular nested file', () => {
+		const result = parseRouteFile('users/detail.tsx')
+		expect(result.segment).toBe('users/detail')
+		expect(result.isLayout).toBe(false)
+		expect(result.isIndex).toBe(false)
 	})
 })

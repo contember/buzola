@@ -13,7 +13,22 @@ export interface PageDefinition<TParams = Record<string, never>> {
 	component: RouteComponent
 	route?: string
 	paramsSchema?: StandardSchema
+	paramsMeta: { name: string; optional: boolean }[]
 }
+
+// ─── Route pattern type safety ──────────────────────────────────────────────
+
+/**
+ * Extract dynamic parameter names from a route pattern at the type level.
+ * "/users/:userId/posts/:postId" → "userId" | "postId"
+ * "/:slug+" → "slug"
+ */
+type ExtractRouteParams<T extends string> = T extends `${string}:${infer Param}/${infer Rest}`
+	? (Param extends `${infer P}+` ? P : Param) | ExtractRouteParams<Rest>
+	: T extends `${string}:${infer Param}` ? (Param extends `${infer P}+` ? P : Param)
+	: never
+
+// ─── Component factory ──────────────────────────────────────────────────────
 
 function createPageComponent<TParams>(
 	schema: StandardSchema<TParams> | undefined,
@@ -70,14 +85,19 @@ function createPageComponent<TParams>(
 		component: BuzolaPage as unknown as RouteComponent,
 		route: routePattern,
 		paramsSchema: schema as StandardSchema | undefined,
+		paramsMeta: (schema as any)?.__buzolaKeys ?? [],
 	}
 }
 
+// ─── Builder ────────────────────────────────────────────────────────────────
+
 export function createPage() {
 	return {
-		params<T>(schema: StandardSchema<T>) {
+		params<T extends Record<string, unknown>>(schema: StandardSchema<T>) {
 			return {
-				route(pattern: string) {
+				route<R extends string>(
+					pattern: [ExtractRouteParams<R>] extends [keyof T & string] ? R : never,
+				) {
 					return {
 						render(fn: ComponentType<PageProps<T>>): PageDefinition<T> {
 							return createPageComponent(schema, pattern, fn)
@@ -89,7 +109,9 @@ export function createPage() {
 				},
 			}
 		},
-		route(pattern: string) {
+		route<R extends string>(
+			pattern: [ExtractRouteParams<R>] extends [never] ? R : never,
+		) {
 			return {
 				render(fn: ComponentType<PageProps<Record<string, never>>>): PageDefinition {
 					return createPageComponent(undefined, pattern, fn)

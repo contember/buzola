@@ -35,10 +35,16 @@ function optional(schema: StandardSchema<string>): StandardSchema<string | undef
 	}
 }
 
+function isOptionalSchema(schema: StandardSchema): boolean {
+	const result = schema['~standard'].validate(undefined)
+	return !('issues' in result)
+}
+
 function object<T extends Record<string, StandardSchema>>(
 	shape: T,
-): StandardSchema<{ [K in keyof T]: T[K] extends StandardSchema<infer V> ? V : never }> {
+): StandardSchema<{ [K in keyof T]: T[K] extends StandardSchema<infer V> ? V : never }> & { __buzolaKeys: { name: string; optional: boolean }[] } {
 	return {
+		__buzolaKeys: Object.entries(shape).map(([name, s]) => ({ name, optional: isOptionalSchema(s) })),
 		'~standard': {
 			version: 1,
 			vendor: 'buzola',

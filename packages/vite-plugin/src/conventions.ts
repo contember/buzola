@@ -1,14 +1,15 @@
 import * as path from 'node:path'
 
 /**
- * File naming conventions for file-based routing.
+ * File naming conventions for page-centric routing.
  *
  * layout.tsx    → Layout wrapper (renders children via <Outlet />)
  * index.tsx     → Index route (renders at parent's exact path)
- * about.tsx     → Named route (→ /about)
- * [param].tsx   → Dynamic segment (→ /:param)
- * [...slug].tsx → Catch-all (→ /:slug+)
+ * about.tsx     → Named page file (page ID derived from file name)
  * (group)/      → Pathless group (no URL segment)
+ *
+ * Route patterns (URL paths) come exclusively from `.route()` on `createPage()`.
+ * File names only determine page IDs and layout nesting.
  */
 
 export const ROUTE_FILE_EXTENSIONS = ['.tsx', '.jsx', '.ts', '.js']
@@ -22,10 +23,6 @@ export interface ParsedRouteFile {
 	isIndex: boolean
 	/** Whether this directory is a pathless group. */
 	isPathlessGroup: boolean
-	/** Whether this is a catch-all route. */
-	isCatchAll: boolean
-	/** The dynamic parameter name, if any. */
-	paramName?: string
 	/** Original file path relative to routes dir. */
 	relativePath: string
 }
@@ -40,20 +37,10 @@ export function isRouteFile(filePath: string): boolean {
 /**
  * Parse a directory name for routing conventions.
  */
-export function parseDirName(name: string): { segment: string; isPathlessGroup: boolean; paramName?: string } {
+export function parseDirName(name: string): { segment: string; isPathlessGroup: boolean } {
 	// Pathless group: (auth)
 	if (name.startsWith('(') && name.endsWith(')')) {
 		return { segment: '', isPathlessGroup: true }
-	}
-
-	// Dynamic segment: [userId]
-	if (name.startsWith('[') && name.endsWith(']')) {
-		const inner = name.slice(1, -1)
-		// Catch-all: [...slug]
-		if (inner.startsWith('...')) {
-			return { segment: `:${inner.slice(3)}+`, isPathlessGroup: false, paramName: inner.slice(3) }
-		}
-		return { segment: `:${inner}`, isPathlessGroup: false, paramName: inner }
 	}
 
 	return { segment: name, isPathlessGroup: false }
@@ -66,29 +53,16 @@ export function parseFileName(nameWithoutExt: string): {
 	segment: string
 	isLayout: boolean
 	isIndex: boolean
-	isCatchAll: boolean
-	paramName?: string
 } {
 	if (nameWithoutExt === 'layout') {
-		return { segment: '', isLayout: true, isIndex: false, isCatchAll: false }
+		return { segment: '', isLayout: true, isIndex: false }
 	}
 
 	if (nameWithoutExt === 'index') {
-		return { segment: '', isLayout: false, isIndex: true, isCatchAll: false }
+		return { segment: '', isLayout: false, isIndex: true }
 	}
 
-	// Dynamic segment file: [userId].tsx
-	if (nameWithoutExt.startsWith('[') && nameWithoutExt.endsWith(']')) {
-		const inner = nameWithoutExt.slice(1, -1)
-		// Catch-all: [...slug].tsx
-		if (inner.startsWith('...')) {
-			const paramName = inner.slice(3)
-			return { segment: `:${paramName}+`, isLayout: false, isIndex: false, isCatchAll: true, paramName }
-		}
-		return { segment: `:${inner}`, isLayout: false, isIndex: false, isCatchAll: false, paramName: inner }
-	}
-
-	return { segment: nameWithoutExt, isLayout: false, isIndex: false, isCatchAll: false }
+	return { segment: nameWithoutExt, isLayout: false, isIndex: false }
 }
 
 /**
@@ -127,8 +101,6 @@ export function parseRouteFile(relativePath: string): ParsedRouteFile {
 		isLayout: fileInfo.isLayout,
 		isIndex: fileInfo.isIndex,
 		isPathlessGroup,
-		isCatchAll: fileInfo.isCatchAll,
-		paramName: fileInfo.paramName,
 		relativePath,
 	}
 }

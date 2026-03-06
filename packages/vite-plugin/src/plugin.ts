@@ -2,6 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
 import { generateRouteModule } from './generator/codegen'
+import type { ModuleLoader } from './generator/page-extractor'
 import { scanRouteFiles } from './generator/scanner'
 import { buildFileRouteTree } from './generator/tree-builder'
 
@@ -44,9 +45,9 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 	let outputPath: string
 	let server: ViteDevServer | undefined
 
-	function generate(): boolean {
+	async function generate(moduleLoader: ModuleLoader): Promise<boolean> {
 		const files = scanRouteFiles(routesDir)
-		const tree = buildFileRouteTree(files)
+		const tree = await buildFileRouteTree(files, moduleLoader)
 		const code = generateRouteModule({
 			tree,
 			routesDir,
@@ -71,9 +72,25 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 			server = srv
 		},
 
-		buildStart() {
-			if (fs.existsSync(routesDir)) {
-				generate()
+		async buildStart() {
+			if (!fs.existsSync(routesDir)) return
+
+			if (server) {
+				await generate((p) => server!.ssrLoadModule(p))
+			} else {
+				// Production build — create a temporary Vite server for module loading
+				const { createServer } = await import('vite')
+				const tempServer = await createServer({
+					root,
+					server: { middlewareMode: true },
+					logLevel: 'silent',
+					optimizeDeps: { noDiscovery: true },
+				})
+				try {
+					await generate((p) => tempServer.ssrLoadModule(p))
+				} finally {
+					await tempServer.close()
+				}
 			}
 		},
 
@@ -90,16 +107,16 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		async handleHotUpdate({ file }) {
-			if (file.startsWith(routesDir)) {
-				const changed = generate()
+			if (!file.startsWith(routesDir) || !server) return
 
-				if (changed && server) {
-					const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)
-					if (mod) {
-						server.moduleGraph.invalidateModule(mod)
-					}
-					server.ws.send({ type: 'full-reload' })
+			const changed = await generate((p) => server!.ssrLoadModule(p))
+
+			if (changed) {
+				const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)
+				if (mod) {
+					server.moduleGraph.invalidateModule(mod)
 				}
+				server.ws.send({ type: 'full-reload' })
 			}
 		},
 	}
