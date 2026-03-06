@@ -13,7 +13,7 @@ export interface PageExportInfo {
 	/** Route pattern (e.g., "/project/:id"). */
 	routePattern: string
 	/** Param info extracted from the page schema. */
-	params: { name: string; optional: boolean }[]
+	params: { name: string; optional: boolean; array: boolean }[]
 }
 
 /**
@@ -119,7 +119,7 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 		const pageExports: PageExportInfo[] = [{
 			pageId,
 			routePattern: fullPath,
-			params: [{ name: '__notFound', optional: false }],
+			params: [{ name: '__notFound', optional: false, array: false }],
 		}]
 		const notFoundNode: FileRouteNode = {
 			segment: catchAllSegment,

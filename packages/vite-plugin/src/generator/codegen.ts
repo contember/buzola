@@ -64,7 +64,10 @@ export function generateRouteModule(options: CodegenOptions): string {
 		if (page.params.length === 0) {
 			lines.push(`    '${page.pageId}': {};`)
 		} else {
-			const paramEntries = page.params.map(p => p.optional ? `${p.name}?: string` : `${p.name}: string`).join('; ')
+			const paramEntries = page.params.map(p => {
+				const type = p.array ? 'string[]' : 'string'
+				return p.optional ? `${p.name}?: ${type}` : `${p.name}: ${type}`
+			}).join('; ')
 			lines.push(`    '${page.pageId}': { ${paramEntries} };`)
 		}
 	}
@@ -102,7 +105,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 interface PageInfo {
 	pageId: string
 	routePattern: string
-	params: { name: string; optional: boolean }[]
+	params: { name: string; optional: boolean; array: boolean }[]
 }
 
 /**

@@ -9,8 +9,8 @@ describe('extractPages', () => {
 				component: () => null,
 				route: '/users/:userId',
 				paramsMeta: [
-					{ name: 'userId', optional: false },
-					{ name: 'tab', optional: true },
+					{ name: 'userId', optional: false, array: false },
+					{ name: 'tab', optional: true, array: false },
 				],
 			},
 		}
@@ -22,8 +22,8 @@ describe('extractPages', () => {
 		expect(pages[0].isDefault).toBe(true)
 		expect(pages[0].route).toBe('/users/:userId')
 		expect(pages[0].params).toEqual([
-			{ name: 'userId', optional: false },
-			{ name: 'tab', optional: true },
+			{ name: 'userId', optional: false, array: false },
+			{ name: 'tab', optional: true, array: false },
 		])
 	})
 
@@ -33,7 +33,7 @@ describe('extractPages', () => {
 				__buzolaPage: true,
 				component: () => null,
 				route: '/project/:id',
-				paramsMeta: [{ name: 'id', optional: false }],
+				paramsMeta: [{ name: 'id', optional: false, array: false }],
 			},
 			list: {
 				__buzolaPage: true,

@@ -9,9 +9,15 @@ import type { StandardSchema } from './types'
  * import { s } from 'buzola'
  *
  * const page = createPage()
- *   .params(s.object({ id: s.string(), tab: s.optional(s.string()) }))
+ *   .params({ id: s.string(), tab: s.optional(s.string()) })
  *   .route('/project/:id')
  *   .render(({ params }) => <div>{params.id}</div>)
+ * ```
+ *
+ * Or use string literals for common types:
+ * ```ts
+ * createPage()
+ *   .params({ id: 'uuid', order: 'number', text: '?string', tags: '?string[]' })
  * ```
  */
 
@@ -35,16 +41,16 @@ function optional(schema: StandardSchema<string>): StandardSchema<string | undef
 	}
 }
 
-function isOptionalSchema(schema: StandardSchema): boolean {
+export function isOptionalSchema(schema: StandardSchema): boolean {
 	const result = schema['~standard'].validate(undefined)
 	return !('issues' in result)
 }
 
 function object<T extends Record<string, StandardSchema>>(
 	shape: T,
-): StandardSchema<{ [K in keyof T]: T[K] extends StandardSchema<infer V> ? V : never }> & { __buzolaKeys: { name: string; optional: boolean }[] } {
+): StandardSchema<{ [K in keyof T]: T[K] extends StandardSchema<infer V> ? V : never }> & { __buzolaKeys: { name: string; optional: boolean; array: boolean }[] } {
 	return {
-		__buzolaKeys: Object.entries(shape).map(([name, s]) => ({ name, optional: isOptionalSchema(s) })),
+		__buzolaKeys: Object.entries(shape).map(([name, s]) => ({ name, optional: isOptionalSchema(s), array: false })),
 		'~standard': {
 			version: 1,
 			vendor: 'buzola',
@@ -63,3 +69,63 @@ function object<T extends Record<string, StandardSchema>>(
 }
 
 export const s = { object, string, optional }
+
+// ─── Param literals ─────────────────────────────────────────────────────────
+
+export type ParamLiteral =
+	| 'string' | 'number' | 'uuid'
+	| '?string' | '?number' | '?uuid'
+	| 'string[]' | 'number[]' | '?string[]' | '?number[]'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+type ScalarValidator = (v: unknown) => { value: unknown } | { issues: readonly { message: string }[] }
+
+const scalarValidators: Record<string, ScalarValidator> = {
+	string: (v) => typeof v === 'string' ? { value: v } : { issues: [{ message: 'expected string' }] },
+	number: (v) => {
+		const n = Number(v)
+		return Number.isNaN(n) ? { issues: [{ message: 'expected number' }] } : { value: n }
+	},
+	uuid: (v) => typeof v === 'string' && UUID_RE.test(v) ? { value: v } : { issues: [{ message: 'expected UUID' }] },
+}
+
+export function resolveParamLiteral(literal: ParamLiteral): {
+	schema: StandardSchema
+	optional: boolean
+	array: boolean
+} {
+	const isOpt = literal.startsWith('?')
+	const rest = isOpt ? literal.slice(1) : literal
+	const isArr = rest.endsWith('[]')
+	const baseType = isArr ? rest.slice(0, -2) : rest
+
+	const validateScalar = scalarValidators[baseType]
+	if (!validateScalar) throw new Error(`Unknown param type: ${baseType}`)
+
+	let validate: StandardSchema['~standard']['validate']
+
+	if (isArr) {
+		validate = (v) => {
+			if (isOpt && (v === undefined || (Array.isArray(v) && v.length === 0))) return { value: undefined }
+			if (!Array.isArray(v)) return { issues: [{ message: `expected ${baseType}[]` }] }
+			const result: unknown[] = []
+			for (const item of v) {
+				const r = validateScalar(item)
+				if ('issues' in r) return r
+				result.push(r.value)
+			}
+			return { value: result }
+		}
+	} else if (isOpt) {
+		validate = (v) => v === undefined || v === '' ? { value: undefined } : validateScalar(v)
+	} else {
+		validate = validateScalar
+	}
+
+	return {
+		schema: { '~standard': { version: 1, vendor: 'buzola', validate } },
+		optional: isOpt,
+		array: isArr,
+	}
+}

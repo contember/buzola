@@ -12,6 +12,7 @@ export interface ExtractedPage {
 export interface ExtractedParam {
 	name: string
 	optional: boolean
+	array: boolean
 }
 
 export type ModuleLoader = (absolutePath: string) => Promise<Record<string, unknown>>
@@ -19,7 +20,7 @@ export type ModuleLoader = (absolutePath: string) => Promise<Record<string, unkn
 function isPageDefinition(value: unknown): value is {
 	__buzolaPage: true
 	route?: string
-	paramsMeta: { name: string; optional: boolean }[]
+	paramsMeta: { name: string; optional: boolean; array: boolean }[]
 } {
 	return value != null && typeof value === 'object' && '__buzolaPage' in value && (value as any).__buzolaPage === true
 }

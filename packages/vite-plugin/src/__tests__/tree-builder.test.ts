@@ -89,7 +89,7 @@ describe('buildFileRouteTree', () => {
 						__buzolaPage: true,
 						component: () => null,
 						route: '/users/:userId',
-						paramsMeta: [{ name: 'userId', optional: false }],
+						paramsMeta: [{ name: 'userId', optional: false, array: false }],
 					},
 				}
 			}
@@ -103,7 +103,7 @@ describe('buildFileRouteTree', () => {
 		expect(users!.children[0].segment).toBe(':userId')
 		expect(users!.children[0].fullPath).toBe('/users/:userId')
 		expect(users!.children[0].pageExports).toEqual([
-			{ pageId: 'users/detail', routePattern: '/users/:userId', params: [{ name: 'userId', optional: false }] },
+			{ pageId: 'users/detail', routePattern: '/users/:userId', params: [{ name: 'userId', optional: false, array: false }] },
 		])
 	})
 
@@ -116,7 +116,7 @@ describe('buildFileRouteTree', () => {
 			default: {
 				__buzolaPage: true,
 				component: () => null,
-				paramsMeta: [{ name: 'userId', optional: false }],
+				paramsMeta: [{ name: 'userId', optional: false, array: false }],
 				// no .route() — should derive /users/detail from file path
 			},
 		})
@@ -127,7 +127,7 @@ describe('buildFileRouteTree', () => {
 		expect(users!.children[0].segment).toBe('detail')
 		expect(users!.children[0].fullPath).toBe('/users/detail')
 		expect(users!.children[0].pageExports).toEqual([
-			{ pageId: 'users/detail', routePattern: '/users/detail', params: [{ name: 'userId', optional: false }] },
+			{ pageId: 'users/detail', routePattern: '/users/detail', params: [{ name: 'userId', optional: false, array: false }] },
 		])
 	})
 
@@ -185,7 +185,7 @@ describe('buildFileRouteTree', () => {
 		expect(notFound!.segment).toBe(':__notFound+')
 		expect(notFound!.fullPath).toBe('/users/:__notFound+')
 		expect(notFound!.pageExports).toEqual([
-			{ pageId: 'users/404', routePattern: '/users/:__notFound+', params: [{ name: '__notFound', optional: false }] },
+			{ pageId: 'users/404', routePattern: '/users/:__notFound+', params: [{ name: '__notFound', optional: false, array: false }] },
 		])
 	})
 })

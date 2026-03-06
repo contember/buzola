@@ -1,8 +1,8 @@
-import { createPage, s, useNavigate } from 'buzola'
+import { createPage, useNavigate } from 'buzola'
 import React from 'react'
 
 export default createPage()
-	.params(s.object({ userId: s.string() }))
+	.params({ userId: 'string' })
 	.route('/users/:userId/settings')
 	.render(({ params }) => {
 		const navigate = useNavigate()
