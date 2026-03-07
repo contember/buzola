@@ -311,7 +311,50 @@ describe('createPage', () => {
 
 		expect(page.loader).toBeDefined()
 	})
+})
 
+describe('Router invalidation', () => {
+	it('invalidateAll calls all registered listeners', () => {
+		const { router } = createRouter([
+			{ path: '/', component: dummyComponent, isIndex: true },
+		])
+
+		const calls: number[] = []
+		router.onInvalidate(() => calls.push(1))
+		router.onInvalidate(() => calls.push(2))
+
+		router.invalidateAll()
+		expect(calls).toEqual([1, 2])
+	})
+
+	it('onInvalidate returns unsubscribe function', () => {
+		const { router } = createRouter([
+			{ path: '/', component: dummyComponent, isIndex: true },
+		])
+
+		const calls: number[] = []
+		const unsub = router.onInvalidate(() => calls.push(1))
+
+		router.invalidateAll()
+		expect(calls).toEqual([1])
+
+		unsub()
+		router.invalidateAll()
+		expect(calls).toEqual([1])
+	})
+
+	it('dispose clears invalidation listeners', () => {
+		const { router } = createRouter([
+			{ path: '/', component: dummyComponent, isIndex: true },
+		])
+
+		const calls: number[] = []
+		router.onInvalidate(() => calls.push(1))
+
+		router.dispose()
+		router.invalidateAll()
+		expect(calls).toEqual([])
+	})
 })
 
 describe('Router page registry', () => {

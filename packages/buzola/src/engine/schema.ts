@@ -48,7 +48,9 @@ export function isOptionalSchema(schema: StandardSchema): boolean {
 
 function object<T extends Record<string, StandardSchema>>(
 	shape: T,
-): StandardSchema<{ [K in keyof T]: T[K] extends StandardSchema<infer V> ? V : never }> & { __buzolaKeys: { name: string; optional: boolean; array: boolean }[] } {
+): StandardSchema<{ [K in keyof T]: T[K] extends StandardSchema<infer V> ? V : never }> & {
+	__buzolaKeys: { name: string; optional: boolean; array: boolean }[]
+} {
 	return {
 		__buzolaKeys: Object.entries(shape).map(([name, s]) => ({ name, optional: isOptionalSchema(s), array: false })),
 		'~standard': {
@@ -72,10 +74,7 @@ export const s = { object, string, optional }
 
 // ─── Param literals ─────────────────────────────────────────────────────────
 
-export type ParamLiteral =
-	| 'string' | 'number' | 'uuid'
-	| '?string' | '?number' | '?uuid'
-	| 'string[]' | 'number[]' | '?string[]' | '?number[]'
+export type ParamLiteral = 'string' | 'number' | 'uuid' | '?string' | '?number' | '?uuid' | 'string[]' | 'number[]' | '?string[]' | '?number[]'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

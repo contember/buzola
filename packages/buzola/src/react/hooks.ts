@@ -135,6 +135,15 @@ export function useRouterState(): RouterState {
 	return context.state
 }
 
+/**
+ * Hook to get a function that invalidates all page loaders.
+ * Loaders re-run in the background while stale data is still shown.
+ */
+export function useInvalidate(): () => void {
+	const router = useRouter()
+	return useCallback(() => router.invalidateAll(), [router])
+}
+
 // ─── Blocker ─────────────────────────────────────────────────────────────────
 
 export interface BlockerState {

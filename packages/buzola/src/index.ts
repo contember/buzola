@@ -49,6 +49,7 @@ export {
 	RouteContext,
 	RouterContext,
 	useBlocker,
+	useInvalidate,
 	useNavigate,
 	useNavigationState,
 	useParams,

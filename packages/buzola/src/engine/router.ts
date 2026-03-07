@@ -55,6 +55,7 @@ export class Router {
 	private readonly persistentParamsFn?: () => Record<string, string>
 	private readonly pageRegistry: Record<string, string>
 	private subscribers = new Set<RouterSubscriber>()
+	private invalidationListeners = new Set<() => void>()
 	private state: RouterState
 	private navigationId = 0
 	private currentAbortController?: AbortController
@@ -378,6 +379,26 @@ export class Router {
 	}
 
 	/**
+	 * Trigger all registered invalidation listeners.
+	 * Used to re-run page loaders in the background.
+	 */
+	invalidateAll(): void {
+		for (const listener of this.invalidationListeners) {
+			listener()
+		}
+	}
+
+	/**
+	 * Register an invalidation listener. Returns an unsubscribe function.
+	 */
+	onInvalidate(listener: () => void): () => void {
+		this.invalidationListeners.add(listener)
+		return () => {
+			this.invalidationListeners.delete(listener)
+		}
+	}
+
+	/**
 	 * Register a navigation blocker.
 	 * The blocker function is called before each navigation.
 	 * It must return a Promise that resolves to `true` to allow or `false` to block.
@@ -397,6 +418,7 @@ export class Router {
 		this.stopFn?.()
 		this.stopFn = undefined
 		this.subscribers.clear()
+		this.invalidationListeners.clear()
 	}
 
 	/**

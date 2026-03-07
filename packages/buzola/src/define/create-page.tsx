@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react'
-import { type ComponentType, use, useCallback, useMemo, useState } from 'react'
-import { type ParamLiteral, isOptionalSchema, resolveParamLiteral } from '../engine/schema'
+import { type ComponentType, use, useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { isOptionalSchema, type ParamLiteral, resolveParamLiteral } from '../engine/schema'
 import type { RouteComponent, StandardSchema } from '../engine/types'
 import { extractParamNames } from '../engine/utils'
-import { RouteContext } from '../react/context'
+import { RouteContext, RouterContext } from '../react/context'
 
 export interface PageProps<TParams> {
 	params: TParams
@@ -41,17 +41,15 @@ type ExtractRouteParams<T extends string> = T extends `${string}:${infer Param}/
 type ParamField = StandardSchema | ParamLiteral
 type ParamsShape = Record<string, ParamField>
 
-type ScalarType<T extends string> =
-	T extends 'string' ? string :
-		T extends 'number' ? number :
-			T extends 'uuid' ? string :
-				never
+type ScalarType<T extends string> = T extends 'string' ? string
+	: T extends 'number' ? number
+	: T extends 'uuid' ? string
+	: never
 
-type LiteralToType<L extends string> =
-	L extends `?${infer Base}[]` ? ScalarType<Base>[] | undefined :
-		L extends `${infer Base}[]` ? ScalarType<Base>[] :
-			L extends `?${infer Base}` ? ScalarType<Base> | undefined :
-				ScalarType<L>
+type LiteralToType<L extends string> = L extends `?${infer Base}[]` ? ScalarType<Base>[] | undefined
+	: L extends `${infer Base}[]` ? ScalarType<Base>[]
+	: L extends `?${infer Base}` ? ScalarType<Base> | undefined
+	: ScalarType<L>
 
 type InferShape<T extends ParamsShape> = {
 	[K in keyof T]: T[K] extends StandardSchema<infer V> ? V : T[K] extends string ? LiteralToType<T[K]> : never
@@ -133,14 +131,20 @@ function createPageComponent<TParams>(
 	// discards all uncommitted hook state (useRef, useState, useMemo).
 	// On retry, hooks reinitialize, and useMemo/useRef would create a new promise,
 	// causing an infinite suspend loop. The closure cache survives this.
+	let cachedUrlHref: string | null = null
 	let cachedLoaderKey: string | null = null
 	let cachedLoaderPromise: Promise<unknown> | null = null
+	let cachedResolvedData: unknown = undefined
+	let hasResolvedOnce = false
+	let pendingBackgroundKey: string | null = null
 
 	function BuzolaPage(): ReactElement | null {
 		const routeContext = use(RouteContext)
 		if (!routeContext) {
 			throw new Error('createPage component must be used within a <BuzolaProvider>')
 		}
+
+		const router = use(RouterContext)
 
 		const params = useMemo(() => {
 			const { state, matches, params: pathParams } = routeContext
@@ -192,23 +196,85 @@ function createPageComponent<TParams>(
 		}, [routeContext])
 
 		const [loaderKey, setLoaderKey] = useState(0)
+		const [, forceUpdate] = useReducer(x => x + 1, 0)
 		const invalidate = useCallback(() => setLoaderKey(k => k + 1), [])
 
-		let loaderPromise: Promise<unknown> | null = null
+		// Subscribe to router-level invalidation
+		useEffect(() => {
+			if (!router) return
+			return router.onInvalidate(() => setLoaderKey(k => k + 1))
+		}, [router])
+
+		let data: unknown = undefined
+		let isLoading = false
+
 		if (loaderFn) {
-			const cacheKey = `${routeContext.state.location.href}:${loaderKey}`
+			const currentUrlHref = routeContext.state.location.href
+			const cacheKey = `${currentUrlHref}:${loaderKey}`
+
+			// URL changed — reset SWR state, next load suspends via use()
+			if (cachedUrlHref !== null && cachedUrlHref !== currentUrlHref) {
+				hasResolvedOnce = false
+				cachedResolvedData = undefined
+				pendingBackgroundKey = null
+			}
+			cachedUrlHref = currentUrlHref
+
 			if (cachedLoaderKey === cacheKey) {
-				loaderPromise = cachedLoaderPromise
-			} else {
-				loaderPromise = loaderFn({ params })
+				// Cache hit — check if background load is pending
+				if (pendingBackgroundKey === cacheKey) {
+					data = cachedResolvedData
+					isLoading = true
+				} else {
+					// Either resolved or first-time suspend
+					if (hasResolvedOnce) {
+						data = cachedResolvedData
+					} else {
+						data = use(cachedLoaderPromise!)
+						cachedResolvedData = data
+						hasResolvedOnce = true
+					}
+				}
+			} else if (hasResolvedOnce) {
+				// Cache key changed + we have stale data → background reload (SWR)
+				const promise = loaderFn({ params })
 				cachedLoaderKey = cacheKey
-				cachedLoaderPromise = loaderPromise
+				cachedLoaderPromise = promise
+				pendingBackgroundKey = cacheKey
+				data = cachedResolvedData
+				isLoading = true
+
+				promise.then(
+					(result) => {
+						// Only apply if this is still the active load
+						if (cachedLoaderKey === cacheKey) {
+							cachedResolvedData = result
+							pendingBackgroundKey = null
+							forceUpdate()
+						}
+					},
+					(error) => {
+						// Store rejected promise so use() triggers ErrorBoundary
+						if (cachedLoaderKey === cacheKey) {
+							cachedLoaderPromise = promise
+							hasResolvedOnce = false
+							pendingBackgroundKey = null
+							forceUpdate()
+						}
+					},
+				)
+			} else {
+				// No stale data — first load, suspend via use()
+				const promise = loaderFn({ params })
+				cachedLoaderKey = cacheKey
+				cachedLoaderPromise = promise
+				data = use(promise)
+				cachedResolvedData = data
+				hasResolvedOnce = true
 			}
 		}
 
-		const data = loaderPromise ? use(loaderPromise) : undefined
-
-		return <RenderComponent params={params} data={data} invalidate={invalidate} />
+		return <RenderComponent params={params} data={data} invalidate={invalidate} isLoading={isLoading} />
 	}
 
 	return {
@@ -230,7 +296,9 @@ interface WithRoute<TParams, TRenderProps> {
 	render(fn: ComponentType<TRenderProps>): PageDefinition<TParams>
 }
 
-interface WithLoaderChain<TParams, TData> extends WithRoute<TParams, PageProps<TParams> & { data: TData; invalidate: () => void }> {
+interface WithLoaderChain<TParams, TData>
+	extends WithRoute<TParams, PageProps<TParams> & { data: TData; invalidate: () => void; isLoading: boolean }>
+{
 	loader<TNew extends Record<string, unknown>>(
 		fn: (ctx: { params: TParams }) => Promise<TNew>,
 	): WithLoaderChain<TParams, TData & TNew>

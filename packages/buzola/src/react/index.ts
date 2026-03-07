@@ -9,7 +9,7 @@ export type { LinkProps } from './link'
 
 export { ErrorBoundary } from './error-boundary'
 
-export { useBlocker, useNavigate, useNavigationState, useParams, useRoute, useRouter, useRouterState, useSearchParams } from './hooks'
+export { useBlocker, useInvalidate, useNavigate, useNavigationState, useParams, useRoute, useRouter, useRouterState, useSearchParams } from './hooks'
 export type { BlockerState } from './hooks'
 
 export { RouteContext, RouterContext } from './context'
