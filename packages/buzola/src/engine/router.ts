@@ -1,3 +1,4 @@
+import { LoaderCache } from './loader-cache'
 import { matchRoutes } from './matcher'
 import type { BlockerFn, GuardRedirect, NavigateOptions, NavigationAdapter, RouteMatch, RouteNode, RouterState } from './types'
 import { extractParamNames } from './utils'
@@ -42,7 +43,7 @@ export interface RouterOptions {
 	 */
 	pageRegistry?: Record<string, string>
 	/**
-	 * Number of previously visited URLs to keep cached per page component.
+	 * Maximum number of entries in the global loader cache (shared across all pages).
 	 * When navigating back to a cached URL, stale data is shown immediately
 	 * while a background reload runs (SWR).
 	 * Set to 0 to always re-fetch on URL change (default).
@@ -69,7 +70,7 @@ export class Router {
 	private stopFn: (() => void) | undefined
 	private blockers = new Set<BlockerFn>()
 	private pendingScrollBehavior: 'after-transition' | 'manual' = 'after-transition'
-	private readonly _loaderCacheSize: number
+	private readonly _loaderCache: LoaderCache | undefined
 
 	constructor(options: RouterOptions) {
 		this.routes = options.routes
@@ -78,7 +79,7 @@ export class Router {
 		this._basePath = options.basePath ? options.basePath.replace(/\/$/, '') : ''
 		this.persistentParamsFn = options.persistentParams
 		this.pageRegistry = options.pageRegistry ?? {}
-		this._loaderCacheSize = options.loaderCacheSize ?? 0
+		this._loaderCache = options.loaderCacheSize ? new LoaderCache(options.loaderCacheSize) : undefined
 
 		// Initialize state from current URL
 		const url = this.adapter.getCurrentURL()
@@ -100,10 +101,11 @@ export class Router {
 	}
 
 	/**
-	 * Number of previously visited URLs to keep cached per page component.
+	 * Global LRU cache for page loader data, shared across all page components.
+	 * Undefined when loaderCacheSize is 0 (no caching).
 	 */
-	get loaderCacheSize(): number {
-		return this._loaderCacheSize
+	get loaderCache(): LoaderCache | undefined {
+		return this._loaderCache
 	}
 
 	/**

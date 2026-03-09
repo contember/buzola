@@ -1,4 +1,6 @@
 // ─── Engine ─────────────────────────────────────────────────────────────────
+export { LoaderCache } from './engine/loader-cache'
+
 export { NavigationAbortedError, Router } from './engine/router'
 export type { RouterOptions, RouterSubscriber } from './engine/router'
 

@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { type ComponentType, use, useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import type { LoaderCache } from '../engine/loader-cache'
 import { isOptionalSchema, type ParamLiteral, resolveParamLiteral } from '../engine/schema'
 import type { RouteComponent, StandardSchema } from '../engine/types'
 import { extractParamNames } from '../engine/utils'
@@ -125,6 +126,8 @@ function combineLoaders(loaders: LoaderFn[]): LoaderFn | undefined {
 
 // ─── Component factory ──────────────────────────────────────────────────────
 
+let nextPageId = 0
+
 function createPageComponent<TParams>(
 	schema: StandardSchema<TParams> | undefined,
 	paramsMeta: ParamMeta[],
@@ -149,14 +152,23 @@ function createPageComponent<TParams>(
 	let hasResolved = false
 	let pendingBackgroundKey: string | null = null
 
-	// LRU cache for previously visited URLs (url → resolved data)
-	const staleDataCache = new Map<string, unknown>()
+	// Unique ID for namespacing entries in the global loader cache
+	const pageId = nextPageId++
 
-	function evictStaleCache(maxSize: number): void {
-		while (staleDataCache.size > maxSize) {
-			const first = staleDataCache.keys().next().value!
-			staleDataCache.delete(first)
-		}
+	function staleCacheKey(urlHref: string): string {
+		return `${pageId}:${urlHref}`
+	}
+
+	function staleCacheGet(cache: LoaderCache, urlHref: string): { hit: true; value: unknown } | { hit: false } {
+		const key = staleCacheKey(urlHref)
+		if (!cache.has(key)) return { hit: false }
+		const value = cache.get(key)
+		cache.delete(key)
+		return { hit: true, value }
+	}
+
+	function staleCacheSet(cache: LoaderCache, urlHref: string, value: unknown): void {
+		cache.set(staleCacheKey(urlHref), value)
 	}
 
 	function BuzolaPage(): ReactElement | null {
@@ -226,7 +238,7 @@ function createPageComponent<TParams>(
 			return router.onInvalidate(() => setLoaderKey(k => k + 1))
 		}, [router])
 
-		const cacheSize = router?.loaderCacheSize ?? 0
+		const loaderCache = router?.loaderCache
 
 		let data: unknown = undefined
 		let isLoading = false
@@ -237,25 +249,26 @@ function createPageComponent<TParams>(
 
 			// URL changed — save old data to stale cache, restore from stale cache if available
 			if (activeUrlHref !== null && activeUrlHref !== currentUrlHref) {
-				if (hasResolved && activeResolvedData !== undefined) {
-					staleDataCache.set(activeUrlHref, activeResolvedData)
-					evictStaleCache(cacheSize)
+				if (loaderCache && hasResolved && activeResolvedData !== undefined) {
+					staleCacheSet(loaderCache, activeUrlHref, activeResolvedData)
 				}
 
-				if (staleDataCache.has(currentUrlHref)) {
-					activeResolvedData = staleDataCache.get(currentUrlHref)
-					staleDataCache.delete(currentUrlHref)
+				const cached = loaderCache && staleCacheGet(loaderCache, currentUrlHref)
+				if (cached?.hit) {
+					activeResolvedData = cached.value
 					hasResolved = true
 				} else {
 					hasResolved = false
 					activeResolvedData = undefined
 				}
 				pendingBackgroundKey = null
-			} else if (activeUrlHref === null && staleDataCache.has(currentUrlHref)) {
+			} else if (activeUrlHref === null && loaderCache) {
 				// Remount — restore from stale cache
-				activeResolvedData = staleDataCache.get(currentUrlHref)
-				staleDataCache.delete(currentUrlHref)
-				hasResolved = true
+				const cached = staleCacheGet(loaderCache, currentUrlHref)
+				if (cached.hit) {
+					activeResolvedData = cached.value
+					hasResolved = true
+				}
 			}
 			activeUrlHref = currentUrlHref
 
@@ -316,9 +329,8 @@ function createPageComponent<TParams>(
 		// On unmount, save active data to stale cache and reset active state
 		useEffect(() => {
 			return () => {
-				if (hasResolved && activeResolvedData !== undefined && activeUrlHref) {
-					staleDataCache.set(activeUrlHref, activeResolvedData)
-					evictStaleCache(cacheSize)
+				if (loaderCache && hasResolved && activeResolvedData !== undefined && activeUrlHref) {
+					staleCacheSet(loaderCache, activeUrlHref, activeResolvedData)
 				}
 				hasResolved = false
 				activeResolvedData = undefined

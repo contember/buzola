@@ -349,6 +349,6 @@ function sortWeight(node: FileRouteNode): number {
 
 function joinPath(parent: string, child: string): string {
 	if (!child) return parent || '/'
-	const base = parent || ''
-	return `${base}/${child}`
+	if (!parent || parent === '/') return `/${child}`
+	return `${parent}/${child}`
 }

@@ -364,6 +364,36 @@ describe('buildFileRouteTree', () => {
 		expect(buildFileRouteTree(files, loader)).rejects.toThrow(/Route collision/)
 	})
 
+	it('named exports from root index.tsx have correct paths (no double slashes)', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/index.tsx', relativePath: 'index.tsx' },
+		]
+
+		const loader: ModuleLoader = async () => ({
+			default: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+			dashboard: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+		})
+
+		const tree = await buildFileRouteTree(files, loader)
+
+		const index = tree.find(n => n.isIndex)
+		expect(index).toBeDefined()
+		expect(index!.fullPath).toBe('/')
+
+		const dashboard = tree.find(n => n.segment === 'dashboard')
+		expect(dashboard).toBeDefined()
+		expect(dashboard!.fullPath).toBe('/dashboard')
+		expect(dashboard!.pageExports![0].routePattern).toBe('/dashboard')
+	})
+
 	it('handles nested _404 within a directory', async () => {
 		const files: ScannedFile[] = [
 			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
