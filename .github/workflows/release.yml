@@ -12,7 +12,7 @@ on:
           - '@buzola/vite-plugin'
           - both
       version:
-        description: 'Version (e.g. 1.0.0, patch, minor, major)'
+        description: 'Exact version (e.g. 0.1.0, 1.0.0)'
         required: true
         type: string
 
@@ -52,15 +52,35 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump version — @buzola/router
-        if: inputs.package == '@buzola/router' || inputs.package == 'both'
-        working-directory: packages/buzola
-        run: npm version ${{ inputs.version }} --no-git-tag-version
+      - name: Bump versions
+        run: |
+          bump() {
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$1', 'utf8'));
+              pkg.version = '${{ inputs.version }}';
+              fs.writeFileSync('$1', JSON.stringify(pkg, null, '\t') + '\n');
+            "
+          }
+          if [[ "${{ inputs.package }}" == "@buzola/router" || "${{ inputs.package }}" == "both" ]]; then
+            bump packages/buzola/package.json
+          fi
+          if [[ "${{ inputs.package }}" == "@buzola/vite-plugin" || "${{ inputs.package }}" == "both" ]]; then
+            bump packages/vite-plugin/package.json
+          fi
 
-      - name: Bump version — @buzola/vite-plugin
-        if: inputs.package == '@buzola/vite-plugin' || inputs.package == 'both'
-        working-directory: packages/vite-plugin
-        run: npm version ${{ inputs.version }} --no-git-tag-version
+      - name: Resolve workspace dependencies
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'packages/vite-plugin/package.json';
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            const routerVersion = JSON.parse(fs.readFileSync('packages/buzola/package.json', 'utf8')).version;
+            if (pkg.dependencies?.['@buzola/router']?.startsWith('workspace:')) {
+              pkg.dependencies['@buzola/router'] = '^' + routerVersion;
+              fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
+            }
+          "
 
       - name: Commit version bump
         run: |
@@ -77,6 +97,21 @@ jobs:
         if: inputs.package == '@buzola/vite-plugin' || inputs.package == 'both'
         working-directory: packages/vite-plugin
         run: npm publish --provenance --access public
+
+      - name: Restore workspace protocol
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'packages/vite-plugin/package.json';
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            if (pkg.dependencies?.['@buzola/router']) {
+              pkg.dependencies['@buzola/router'] = 'workspace:*';
+              fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
+            }
+          "
+          git add -A
+          git diff --cached --quiet || git commit --amend --no-edit
+          git push --force-with-lease
 
       - name: Create git tags
         run: |
