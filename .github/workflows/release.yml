@@ -1,76 +1,20 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      package:
-        description: 'Package to release'
-        required: true
-        type: choice
-        options:
-          - '@buzola/router'
-          - '@buzola/vite-plugin'
-          - both
-      version:
-        description: 'Exact version (e.g. 0.1.0, 1.0.0)'
-        required: true
-        type: string
+  push:
+    tags:
+      - "@buzola/*@*"
 
 permissions: {}
 
 jobs:
-  version:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Bump versions
-        run: |
-          bump() {
-            node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('$1', 'utf8'));
-              pkg.version = '${{ inputs.version }}';
-              fs.writeFileSync('$1', JSON.stringify(pkg, null, '\t') + '\n');
-            "
-          }
-          if [[ "${{ inputs.package }}" == "@buzola/router" || "${{ inputs.package }}" == "both" ]]; then
-            bump packages/buzola/package.json
-          fi
-          if [[ "${{ inputs.package }}" == "@buzola/vite-plugin" || "${{ inputs.package }}" == "both" ]]; then
-            bump packages/vite-plugin/package.json
-          fi
-
-      - name: Commit and tag
-        run: |
-          git add -A
-          git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "release: ${{ inputs.package }} ${{ inputs.version }}"
-          if [[ "${{ inputs.package }}" == "@buzola/router" || "${{ inputs.package }}" == "both" ]]; then
-            git tag "@buzola/router@${{ inputs.version }}"
-          fi
-          if [[ "${{ inputs.package }}" == "@buzola/vite-plugin" || "${{ inputs.package }}" == "both" ]]; then
-            git tag "@buzola/vite-plugin@${{ inputs.version }}"
-          fi
-          git push --follow-tags
-
   publish:
-    needs: version
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
 
       - uses: oven-sh/setup-bun@v2
 
@@ -78,6 +22,16 @@ jobs:
         with:
           node-version: "24.x"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PACKAGE="${TAG%@*}"
+          VERSION="${TAG##*@}"
+          echo "package=${PACKAGE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${PACKAGE}@${VERSION}"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -94,25 +48,27 @@ jobs:
       - name: Test
         run: bun test
 
-      - name: Resolve workspace dependencies
+      - name: Set version and resolve workspace deps
         run: |
           node -e "
             const fs = require('fs');
-            const p = 'packages/vite-plugin/package.json';
-            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-            const routerVersion = JSON.parse(fs.readFileSync('packages/buzola/package.json', 'utf8')).version;
-            if (pkg.dependencies?.['@buzola/router']?.startsWith('workspace:')) {
-              pkg.dependencies['@buzola/router'] = '^' + routerVersion;
+            const version = '${{ steps.tag.outputs.version }}';
+            for (const p of ['packages/buzola/package.json', 'packages/vite-plugin/package.json']) {
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              pkg.version = version;
+              for (const [dep, val] of Object.entries(pkg.dependencies ?? {})) {
+                if (String(val).startsWith('workspace:')) pkg.dependencies[dep] = '^' + version;
+              }
               fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
             }
           "
 
       - name: Publish @buzola/router
-        if: inputs.package == '@buzola/router' || inputs.package == 'both'
+        if: steps.tag.outputs.package == '@buzola/router'
         working-directory: packages/buzola
         run: npm publish --provenance --access public
 
       - name: Publish @buzola/vite-plugin
-        if: inputs.package == '@buzola/vite-plugin' || inputs.package == 'both'
+        if: steps.tag.outputs.package == '@buzola/vite-plugin'
         working-directory: packages/vite-plugin
         run: npm publish --provenance --access public
