@@ -1,4 +1,4 @@
-import { createPage, Link, useRoute } from 'buzola'
+import { createPage, Link, useRoute } from '@buzola/router'
 import React from 'react'
 
 const mockUsers: Record<string, { name: string; email: string }> = {

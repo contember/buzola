@@ -8,7 +8,7 @@
 		"build": "vite build"
 	},
 	"dependencies": {
-		"buzola": "workspace:*",
+		"@buzola/router": "workspace:*",
 		"@buzola/vite-plugin": "workspace:*",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0"

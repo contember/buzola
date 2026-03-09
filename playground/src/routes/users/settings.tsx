@@ -1,4 +1,4 @@
-import { createPage, useNavigate } from 'buzola'
+import { createPage, useNavigate } from '@buzola/router'
 import React from 'react'
 
 export default createPage()

@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to release'
+        required: true
+        type: choice
+        options:
+          - '@buzola/router'
+          - '@buzola/vite-plugin'
+          - both
+      version:
+        description: 'Version (e.g. 1.0.0, patch, minor, major)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Format check
+        run: bun run format:check
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version — @buzola/router
+        if: inputs.package == '@buzola/router' || inputs.package == 'both'
+        working-directory: packages/buzola
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Bump version — @buzola/vite-plugin
+        if: inputs.package == '@buzola/vite-plugin' || inputs.package == 'both'
+        working-directory: packages/vite-plugin
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Commit version bump
+        run: |
+          git add -A
+          git commit -m "release: ${{ inputs.package }} ${{ inputs.version }}"
+          git push
+
+      - name: Publish @buzola/router
+        if: inputs.package == '@buzola/router' || inputs.package == 'both'
+        working-directory: packages/buzola
+        run: npm publish --provenance --access public
+
+      - name: Publish @buzola/vite-plugin
+        if: inputs.package == '@buzola/vite-plugin' || inputs.package == 'both'
+        working-directory: packages/vite-plugin
+        run: npm publish --provenance --access public
+
+      - name: Create git tags
+        run: |
+          if [[ "${{ inputs.package }}" == "@buzola/router" || "${{ inputs.package }}" == "both" ]]; then
+            VERSION=$(node -p "require('./packages/buzola/package.json').version")
+            git tag "@buzola/router@${VERSION}"
+          fi
+          if [[ "${{ inputs.package }}" == "@buzola/vite-plugin" || "${{ inputs.package }}" == "both" ]]; then
+            VERSION=$(node -p "require('./packages/vite-plugin/package.json').version")
+            git tag "@buzola/vite-plugin@${VERSION}"
+          fi
+          git push --tags

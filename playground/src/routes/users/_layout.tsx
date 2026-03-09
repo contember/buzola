@@ -1,4 +1,4 @@
-import { Outlet } from 'buzola'
+import { Outlet } from '@buzola/router'
 import React from 'react'
 
 export default function UsersLayout() {

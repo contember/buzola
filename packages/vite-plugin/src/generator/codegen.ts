@@ -31,8 +31,8 @@ export function generateRouteModule(options: CodegenOptions): string {
 
 	// Framework imports first — needed by lazy component declarations below
 	lines.push(`import { lazy, type ComponentType } from 'react';`)
-	lines.push(`import { buildRouteTree } from 'buzola';`)
-	lines.push(`import type { RouteConfig } from 'buzola';`)
+	lines.push(`import { buildRouteTree } from '@buzola/router';`)
+	lines.push(`import type { RouteConfig } from '@buzola/router';`)
 	lines.push('')
 
 	// Collect route imports — importsByKey maps "filePath::exportName" → import info
@@ -62,7 +62,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 
 	// Generate page map type augmentation
 	lines.push('// Module augmentation for type-safe page-centric routing')
-	lines.push(`declare module 'buzola' {`)
+	lines.push(`declare module '@buzola/router' {`)
 	lines.push('  interface BuzolaPageMap {')
 	for (const page of pages) {
 		if (page.params.length === 0) {

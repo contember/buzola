@@ -6,7 +6,7 @@ import type { StandardSchema } from './types'
  *
  * @example
  * ```ts
- * import { s } from 'buzola'
+ * import { s } from '@buzola/router'
  *
  * const page = createPage()
  *   .params({ id: s.string(), tab: s.optional(s.string()) })

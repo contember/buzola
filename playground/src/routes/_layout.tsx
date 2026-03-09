@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'buzola'
+import { Link, Outlet } from '@buzola/router'
 import React from 'react'
 
 export default function RootLayout() {

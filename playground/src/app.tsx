@@ -1,4 +1,4 @@
-import { BuzolaProvider } from 'buzola'
+import { BuzolaProvider } from '@buzola/router'
 import React from 'react'
 import { pageRegistry, routes } from './buzola.gen'
 
