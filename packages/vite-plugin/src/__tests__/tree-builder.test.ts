@@ -103,7 +103,7 @@ describe('buildFileRouteTree', () => {
 		expect(users!.children[0].segment).toBe(':userId')
 		expect(users!.children[0].fullPath).toBe('/users/:userId')
 		expect(users!.children[0].pageExports).toEqual([
-			{ pageId: 'users/detail', routePattern: '/users/:userId', params: [{ name: 'userId', optional: false, array: false }] },
+			{ pageId: 'users/detail', exportName: 'default', routePattern: '/users/:userId', params: [{ name: 'userId', optional: false, array: false }] },
 		])
 	})
 
@@ -127,7 +127,7 @@ describe('buildFileRouteTree', () => {
 		expect(users!.children[0].segment).toBe('detail')
 		expect(users!.children[0].fullPath).toBe('/users/detail')
 		expect(users!.children[0].pageExports).toEqual([
-			{ pageId: 'users/detail', routePattern: '/users/detail', params: [{ name: 'userId', optional: false, array: false }] },
+			{ pageId: 'users/detail', exportName: 'default', routePattern: '/users/detail', params: [{ name: 'userId', optional: false, array: false }] },
 		])
 	})
 
@@ -149,7 +149,7 @@ describe('buildFileRouteTree', () => {
 		const index = users!.children.find(n => n.isIndex)
 		expect(index).toBeDefined()
 		expect(index!.pageExports).toEqual([
-			{ pageId: 'users', routePattern: '/users', params: [] },
+			{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] },
 		])
 	})
 
@@ -170,6 +170,200 @@ describe('buildFileRouteTree', () => {
 		expect(notFound!.fullPath).toBe('/:__notFound+')
 	})
 
+	// ─── Named exports ──────────────────────────────────────────────────────
+
+	it('creates child nodes for named exports from regular files', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users.tsx', relativePath: 'users.tsx' },
+		]
+
+		const loader: ModuleLoader = async () => ({
+			default: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+			detail: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [{ name: 'id', optional: false, array: false }],
+			},
+			settings: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+		})
+
+		const tree = await buildFileRouteTree(files, loader)
+		const users = tree.find(n => n.segment === 'users')
+		expect(users).toBeDefined()
+		expect(users!.filePath).toBe('/app/src/routes/users.tsx')
+		expect(users!.exportName).toBe('default')
+		expect(users!.pageExports).toEqual([
+			{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] },
+		])
+
+		// Named exports become children
+		expect(users!.children).toHaveLength(2)
+		const detail = users!.children.find(n => n.segment === 'detail')
+		expect(detail).toBeDefined()
+		expect(detail!.filePath).toBe('/app/src/routes/users.tsx')
+		expect(detail!.exportName).toBe('detail')
+		expect(detail!.fullPath).toBe('/users/detail')
+		expect(detail!.pageExports).toEqual([
+			{ pageId: 'users/detail', exportName: 'detail', routePattern: '/users/detail', params: [{ name: 'id', optional: false, array: false }] },
+		])
+
+		const settings = users!.children.find(n => n.segment === 'settings')
+		expect(settings).toBeDefined()
+		expect(settings!.fullPath).toBe('/users/settings')
+	})
+
+	it('creates sibling nodes for named exports from index files', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
+		]
+
+		const loader: ModuleLoader = async () => ({
+			default: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+			detail: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [{ name: 'id', optional: false, array: false }],
+			},
+		})
+
+		const tree = await buildFileRouteTree(files, loader)
+		const users = tree.find(n => n.segment === 'users')
+		expect(users).toBeDefined()
+
+		// Default export → index node
+		const index = users!.children.find(n => n.isIndex)
+		expect(index).toBeDefined()
+		expect(index!.filePath).toBe('/app/src/routes/users/index.tsx')
+
+		// Named export → sibling of index (child of users)
+		const detail = users!.children.find(n => n.segment === 'detail')
+		expect(detail).toBeDefined()
+		expect(detail!.filePath).toBe('/app/src/routes/users/index.tsx')
+		expect(detail!.exportName).toBe('detail')
+		expect(detail!.fullPath).toBe('/users/detail')
+		expect(detail!.pageExports).toEqual([
+			{ pageId: 'users/detail', exportName: 'detail', routePattern: '/users/detail', params: [{ name: 'id', optional: false, array: false }] },
+		])
+	})
+
+	it('creates container node when file has only named exports', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users.tsx', relativePath: 'users.tsx' },
+		]
+
+		const loader: ModuleLoader = async () => ({
+			list: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+			detail: {
+				__buzolaPage: true,
+				component: () => null,
+				paramsMeta: [],
+			},
+		})
+
+		const tree = await buildFileRouteTree(files, loader)
+		const users = tree.find(n => n.segment === 'users')
+		expect(users).toBeDefined()
+		expect(users!.filePath).toBeUndefined() // No default → no component
+		expect(users!.pageExports).toBeUndefined()
+
+		expect(users!.children).toHaveLength(2)
+		expect(users!.children.find(n => n.segment === 'detail')).toBeDefined()
+		expect(users!.children.find(n => n.segment === 'list')).toBeDefined()
+	})
+
+	it('named export with .route() uses explicit route pattern', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users.tsx', relativePath: 'users.tsx' },
+		]
+
+		const loader: ModuleLoader = async () => ({
+			detail: {
+				__buzolaPage: true,
+				component: () => null,
+				route: '/users/:userId',
+				paramsMeta: [{ name: 'userId', optional: false, array: false }],
+			},
+		})
+
+		const tree = await buildFileRouteTree(files, loader)
+		const users = tree.find(n => n.segment === 'users')
+		expect(users!.children).toHaveLength(1)
+		expect(users!.children[0].segment).toBe(':userId')
+		expect(users!.children[0].fullPath).toBe('/users/:userId')
+	})
+
+	it('throws on collision: named export vs file in subdirectory', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users.tsx', relativePath: 'users.tsx' },
+			{ absolutePath: '/app/src/routes/users/detail.tsx', relativePath: 'users/detail.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/users.tsx') {
+				return {
+					detail: {
+						__buzolaPage: true,
+						component: () => null,
+						paramsMeta: [],
+					},
+				}
+			}
+			return {
+				default: {
+					__buzolaPage: true,
+					component: () => null,
+					paramsMeta: [],
+				},
+			}
+		}
+
+		expect(buildFileRouteTree(files, loader)).rejects.toThrow(/Route collision/)
+	})
+
+	it('throws on collision: named export from index vs file in same directory', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users/detail.tsx', relativePath: 'users/detail.tsx' },
+			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/users/index.tsx') {
+				return {
+					detail: {
+						__buzolaPage: true,
+						component: () => null,
+						paramsMeta: [],
+					},
+				}
+			}
+			return {
+				default: {
+					__buzolaPage: true,
+					component: () => null,
+					paramsMeta: [],
+				},
+			}
+		}
+
+		expect(buildFileRouteTree(files, loader)).rejects.toThrow(/Route collision/)
+	})
+
 	it('handles nested _404 within a directory', async () => {
 		const files: ScannedFile[] = [
 			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
@@ -185,7 +379,12 @@ describe('buildFileRouteTree', () => {
 		expect(notFound!.segment).toBe(':__notFound+')
 		expect(notFound!.fullPath).toBe('/users/:__notFound+')
 		expect(notFound!.pageExports).toEqual([
-			{ pageId: 'users/404', routePattern: '/users/:__notFound+', params: [{ name: '__notFound', optional: false, array: false }] },
+			{
+				pageId: 'users/404',
+				exportName: 'default',
+				routePattern: '/users/:__notFound+',
+				params: [{ name: '__notFound', optional: false, array: false }],
+			},
 		])
 	})
 })

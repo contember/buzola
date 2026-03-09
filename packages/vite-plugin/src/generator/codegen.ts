@@ -35,19 +35,23 @@ export function generateRouteModule(options: CodegenOptions): string {
 	lines.push(`import type { RouteConfig } from 'buzola';`)
 	lines.push('')
 
-	// Collect route imports — importsByAbsPath maps absolute file path → import info
-	const imports: { varName: string; filePath: string; isLazy: boolean }[] = []
-	const importsByAbsPath = new Map<string, { varName: string; isLazy: boolean }>()
-	collectImports(tree, outputDir, imports, importsByAbsPath, () => importCounter++)
+	// Collect route imports — importsByKey maps "filePath::exportName" → import info
+	const imports: { varName: string; filePath: string; isLazy: boolean; exportName: string }[] = []
+	const importsByKey = new Map<string, { varName: string; isLazy: boolean }>()
+	collectImports(tree, outputDir, imports, importsByKey, () => importCounter++)
 
 	// Generate route imports
 	for (const imp of imports) {
 		if (imp.isLazy) {
 			lines.push(
-				`const ${imp.varName} = () => import('${imp.filePath}').then(m => ({ default: m.default.component })) as Promise<{ default: ComponentType }>;`,
+				`const ${imp.varName} = () => import('${imp.filePath}').then(m => ({ default: m.${imp.exportName}.component })) as Promise<{ default: ComponentType }>;`,
 			)
 		} else {
-			lines.push(`import ${imp.varName} from '${imp.filePath}';`)
+			if (imp.exportName !== 'default') {
+				lines.push(`import { ${imp.exportName} as ${imp.varName} } from '${imp.filePath}';`)
+			} else {
+				lines.push(`import ${imp.varName} from '${imp.filePath}';`)
+			}
 		}
 	}
 
@@ -93,7 +97,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 
 	// Generate route tree config
 	lines.push('const routeConfigs: RouteConfig[] = [')
-	generateTreeConfig(tree, lines, importsByAbsPath, 1)
+	generateTreeConfig(tree, lines, importsByKey, 1)
 	lines.push('];')
 	lines.push('')
 	lines.push('export const routes = buildRouteTree(routeConfigs);')
@@ -135,39 +139,47 @@ function collectPages(nodes: FileRouteNode[], parentPath = ''): PageInfo[] {
 	return result
 }
 
+function importKey(filePath: string, exportName?: string): string {
+	return `${filePath}::${exportName ?? 'default'}`
+}
+
 function collectImports(
 	nodes: FileRouteNode[],
 	outputDir: string,
-	imports: { varName: string; filePath: string; isLazy: boolean }[],
-	importsByAbsPath: Map<string, { varName: string; isLazy: boolean }>,
+	imports: { varName: string; filePath: string; isLazy: boolean; exportName: string }[],
+	importsByKey: Map<string, { varName: string; isLazy: boolean }>,
 	nextId: () => number,
 ): void {
 	for (const node of nodes) {
 		if (node.filePath) {
-			const relativePath = path.relative(outputDir, node.filePath)
-			const importPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
-			// Strip extension for import
-			const cleanPath = importPath.replace(/\.(tsx?|jsx?)$/, '')
-			const varName = `Route${nextId()}`
-			const isLazy = !node.isLayout // Layouts are eagerly loaded, pages are lazy
-			imports.push({ varName, filePath: cleanPath, isLazy })
-			importsByAbsPath.set(node.filePath, { varName, isLazy })
+			const key = importKey(node.filePath, node.exportName)
+			if (!importsByKey.has(key)) {
+				const relativePath = path.relative(outputDir, node.filePath)
+				const importPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+				// Strip extension for import
+				const cleanPath = importPath.replace(/\.(tsx?|jsx?)$/, '')
+				const varName = `Route${nextId()}`
+				const isLazy = !node.isLayout // Layouts are eagerly loaded, pages are lazy
+				const exportName = node.exportName ?? 'default'
+				imports.push({ varName, filePath: cleanPath, isLazy, exportName })
+				importsByKey.set(key, { varName, isLazy })
+			}
 		}
 
-		collectImports(node.children, outputDir, imports, importsByAbsPath, nextId)
+		collectImports(node.children, outputDir, imports, importsByKey, nextId)
 	}
 }
 
 function generateTreeConfig(
 	nodes: FileRouteNode[],
 	lines: string[],
-	importsByAbsPath: Map<string, { varName: string; isLazy: boolean }>,
+	importsByKey: Map<string, { varName: string; isLazy: boolean }>,
 	indent: number,
 ): void {
 	const pad = '  '.repeat(indent)
 
 	for (const node of nodes) {
-		const imp = node.filePath ? importsByAbsPath.get(node.filePath) : undefined
+		const imp = node.filePath ? importsByKey.get(importKey(node.filePath, node.exportName)) : undefined
 
 		lines.push(`${pad}{`)
 		lines.push(`${pad}  path: '${node.segment ? `/${node.segment}` : '/'}',`)
@@ -186,7 +198,7 @@ function generateTreeConfig(
 
 		if (node.children.length > 0) {
 			lines.push(`${pad}  children: [`)
-			generateTreeConfig(node.children, lines, importsByAbsPath, indent + 2)
+			generateTreeConfig(node.children, lines, importsByKey, indent + 2)
 			lines.push(`${pad}  ],`)
 		}
 
