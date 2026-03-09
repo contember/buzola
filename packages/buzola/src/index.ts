@@ -38,7 +38,7 @@ export { s } from './engine/schema'
 
 // ─── Route definition ───────────────────────────────────────────────────────
 export { createPage } from './define/create-page'
-export type { PageDefinition, PageProps } from './define/create-page'
+export type { CatchContext, PageDefinition, PageProps } from './define/create-page'
 
 // ─── React (re-export from subpath) ─────────────────────────────────────────
 export {

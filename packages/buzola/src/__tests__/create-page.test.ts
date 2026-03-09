@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { createElement } from 'react'
 import { createPage } from '../define/create-page'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter'
 import { buildRouteTree } from '../engine/route-tree'
@@ -298,6 +299,47 @@ describe('createPage', () => {
 			.render(({ data }) => null)
 
 		expect(page.loader).toBe(loader)
+	})
+
+	it('.catch() with static ReactNode returns valid PageDefinition', () => {
+		const page = createPage()
+			.catch(createElement('div', null, 'Error occurred'))
+			.render(({ params }) => null)
+
+		expect(page.__buzolaPage).toBe(true)
+		expect(typeof page.component).toBe('function')
+	})
+
+	it('.params().loader().catch().render() full chain', () => {
+		const page = createPage()
+			.params({ id: 'string' })
+			.loader(async ({ params }) => ({ name: `User ${params.id}` }))
+			.catch(({ error, retry }) => createElement('div', null, 'Failed'))
+			.render(({ params, data }) => null)
+
+		expect(page.__buzolaPage).toBe(true)
+		expect(page.loader).toBeDefined()
+		expect(typeof page.component).toBe('function')
+	})
+
+	it('.catch().route().render() chain', () => {
+		const page = createPage()
+			.catch(({ error }) => createElement('div', null, error.message))
+			.route('/about')
+			.render(({ params }) => null)
+
+		expect(page.__buzolaPage).toBe(true)
+		expect(page.route).toBe('/about')
+	})
+
+	it('.route().catch().render() chain', () => {
+		const page = createPage()
+			.route('/about')
+			.catch(({ error }) => createElement('div', null, error.message))
+			.render(({ params }) => null)
+
+		expect(page.__buzolaPage).toBe(true)
+		expect(page.route).toBe('/about')
 	})
 
 	it('invalidate is available in render props with loader', () => {

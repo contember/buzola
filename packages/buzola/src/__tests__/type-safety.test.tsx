@@ -77,6 +77,39 @@ describe('createPage route type safety', () => {
 	})
 })
 
+// ─── createPage().catch() type safety ────────────────────────────────────────
+
+describe('createPage catch type safety', () => {
+	it('.catch() is available before .render()', () => {
+		const _page = createPage()
+			.catch(({ error }) => <div>{error.message}</div>)
+			.render(() => null)
+		expect(true).toBe(true)
+	})
+
+	it('.catch() is available after .route()', () => {
+		const _page = createPage()
+			.route('/about')
+			.catch(({ error }) => <div>{error.message}</div>)
+			.render(() => null)
+		expect(true).toBe(true)
+	})
+
+	it('no .catch() after .catch()', () => {
+		const withCatch = createPage().catch(({ error }) => <div>{error.message}</div>)
+		// @ts-expect-error — .catch() should not be available after .catch()
+		withCatch.catch
+		expect(true).toBe(true)
+	})
+
+	it('no .loader() after .catch()', () => {
+		const withCatch = createPage().catch(({ error }) => <div>{error.message}</div>)
+		// @ts-expect-error — .loader() should not be available after .catch()
+		withCatch.loader
+		expect(true).toBe(true)
+	})
+})
+
 // ─── LinkProps ──────────────────────────────────────────────────────────────
 
 describe('LinkProps type safety', () => {
