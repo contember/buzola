@@ -131,12 +131,24 @@ function createPageComponent<TParams>(
 	// discards all uncommitted hook state (useRef, useState, useMemo).
 	// On retry, hooks reinitialize, and useMemo/useRef would create a new promise,
 	// causing an infinite suspend loop. The closure cache survives this.
-	let cachedUrlHref: string | null = null
-	let cachedLoaderKey: string | null = null
-	let cachedLoaderPromise: Promise<unknown> | null = null
-	let cachedResolvedData: unknown = undefined
-	let hasResolvedOnce = false
+
+	// Active load state (current URL)
+	let activeUrlHref: string | null = null
+	let activeCacheKey: string | null = null
+	let activePromise: Promise<unknown> | null = null
+	let activeResolvedData: unknown = undefined
+	let hasResolved = false
 	let pendingBackgroundKey: string | null = null
+
+	// LRU cache for previously visited URLs (url → resolved data)
+	const staleDataCache = new Map<string, unknown>()
+
+	function evictStaleCache(maxSize: number): void {
+		while (staleDataCache.size > maxSize) {
+			const first = staleDataCache.keys().next().value!
+			staleDataCache.delete(first)
+		}
+	}
 
 	function BuzolaPage(): ReactElement | null {
 		const routeContext = use(RouteContext)
@@ -205,6 +217,8 @@ function createPageComponent<TParams>(
 			return router.onInvalidate(() => setLoaderKey(k => k + 1))
 		}, [router])
 
+		const cacheSize = router?.loaderCacheSize ?? 0
+
 		let data: unknown = undefined
 		let isLoading = false
 
@@ -212,52 +226,68 @@ function createPageComponent<TParams>(
 			const currentUrlHref = routeContext.state.location.href
 			const cacheKey = `${currentUrlHref}:${loaderKey}`
 
-			// URL changed — reset SWR state, next load suspends via use()
-			if (cachedUrlHref !== null && cachedUrlHref !== currentUrlHref) {
-				hasResolvedOnce = false
-				cachedResolvedData = undefined
-				pendingBackgroundKey = null
-			}
-			cachedUrlHref = currentUrlHref
+			// URL changed — save old data to stale cache, restore from stale cache if available
+			if (activeUrlHref !== null && activeUrlHref !== currentUrlHref) {
+				if (hasResolved && activeResolvedData !== undefined) {
+					staleDataCache.set(activeUrlHref, activeResolvedData)
+					evictStaleCache(cacheSize)
+				}
 
-			if (cachedLoaderKey === cacheKey) {
+				if (staleDataCache.has(currentUrlHref)) {
+					activeResolvedData = staleDataCache.get(currentUrlHref)
+					staleDataCache.delete(currentUrlHref)
+					hasResolved = true
+				} else {
+					hasResolved = false
+					activeResolvedData = undefined
+				}
+				pendingBackgroundKey = null
+			} else if (activeUrlHref === null && staleDataCache.has(currentUrlHref)) {
+				// Remount — restore from stale cache
+				activeResolvedData = staleDataCache.get(currentUrlHref)
+				staleDataCache.delete(currentUrlHref)
+				hasResolved = true
+			}
+			activeUrlHref = currentUrlHref
+
+			if (activeCacheKey === cacheKey) {
 				// Cache hit — check if background load is pending
 				if (pendingBackgroundKey === cacheKey) {
-					data = cachedResolvedData
+					data = activeResolvedData
 					isLoading = true
 				} else {
 					// Either resolved or first-time suspend
-					if (hasResolvedOnce) {
-						data = cachedResolvedData
+					if (hasResolved) {
+						data = activeResolvedData
 					} else {
-						data = use(cachedLoaderPromise!)
-						cachedResolvedData = data
-						hasResolvedOnce = true
+						data = use(activePromise!)
+						activeResolvedData = data
+						hasResolved = true
 					}
 				}
-			} else if (hasResolvedOnce) {
+			} else if (hasResolved) {
 				// Cache key changed + we have stale data → background reload (SWR)
 				const promise = loaderFn({ params })
-				cachedLoaderKey = cacheKey
-				cachedLoaderPromise = promise
+				activeCacheKey = cacheKey
+				activePromise = promise
 				pendingBackgroundKey = cacheKey
-				data = cachedResolvedData
+				data = activeResolvedData
 				isLoading = true
 
 				promise.then(
 					(result) => {
 						// Only apply if this is still the active load
-						if (cachedLoaderKey === cacheKey) {
-							cachedResolvedData = result
+						if (activeCacheKey === cacheKey) {
+							activeResolvedData = result
 							pendingBackgroundKey = null
 							forceUpdate()
 						}
 					},
 					(error) => {
 						// Store rejected promise so use() triggers ErrorBoundary
-						if (cachedLoaderKey === cacheKey) {
-							cachedLoaderPromise = promise
-							hasResolvedOnce = false
+						if (activeCacheKey === cacheKey) {
+							activePromise = promise
+							hasResolved = false
 							pendingBackgroundKey = null
 							forceUpdate()
 						}
@@ -266,13 +296,29 @@ function createPageComponent<TParams>(
 			} else {
 				// No stale data — first load, suspend via use()
 				const promise = loaderFn({ params })
-				cachedLoaderKey = cacheKey
-				cachedLoaderPromise = promise
+				activeCacheKey = cacheKey
+				activePromise = promise
 				data = use(promise)
-				cachedResolvedData = data
-				hasResolvedOnce = true
+				activeResolvedData = data
+				hasResolved = true
 			}
 		}
+
+		// On unmount, save active data to stale cache and reset active state
+		useEffect(() => {
+			return () => {
+				if (hasResolved && activeResolvedData !== undefined && activeUrlHref) {
+					staleDataCache.set(activeUrlHref, activeResolvedData)
+					evictStaleCache(cacheSize)
+				}
+				hasResolved = false
+				activeResolvedData = undefined
+				activeCacheKey = null
+				activePromise = null
+				pendingBackgroundKey = null
+				activeUrlHref = null
+			}
+		}, [])
 
 		return <RenderComponent params={params} data={data} invalidate={invalidate} isLoading={isLoading} />
 	}
