@@ -16,7 +16,7 @@
 		"src"
 	],
 	"dependencies": {
-		"@buzola/router": "^0.0.2"
+		"@buzola/router": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/node": "^25.3.3",
