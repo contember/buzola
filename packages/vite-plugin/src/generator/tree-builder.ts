@@ -292,7 +292,8 @@ async function extractPageExportsFromFile(
 	let pages: ExtractedPage[]
 	try {
 		pages = await extractPages(file.absolutePath, moduleLoader)
-	} catch {
+	} catch (error) {
+		console.warn(`[buzola] Failed to extract pages from ${file.relativePath}:`, error instanceof Error ? error.message : error)
 		return undefined
 	}
 

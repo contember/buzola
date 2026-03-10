@@ -154,7 +154,7 @@ function collectImports(
 		if (node.filePath) {
 			const key = importKey(node.filePath, node.exportName)
 			if (!importsByKey.has(key)) {
-				const relativePath = path.relative(outputDir, node.filePath)
+				const relativePath = path.relative(outputDir, node.filePath).replaceAll('\\', '/')
 				const importPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
 				// Strip extension for import
 				const cleanPath = importPath.replace(/\.(tsx?|jsx?)$/, '')
