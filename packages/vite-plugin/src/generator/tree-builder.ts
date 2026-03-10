@@ -117,108 +117,127 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 		current.isLayout = true
 		current.filePath = file.absolutePath
 	} else if (fileInfo.isNotFound) {
-		const catchAllSegment = ':__notFound+'
-		const fullPath = joinPath(currentPath, catchAllSegment)
-		const pageId = dirs.length === 0 ? '404' : `${dirs.join('/')}/404`
-		const pageExports: PageExportInfo[] = [{
-			pageId,
-			exportName: 'default',
-			routePattern: fullPath,
-			params: [{ name: '__notFound', optional: false, array: false }],
-		}]
-		const notFoundNode: FileRouteNode = {
-			segment: catchAllSegment,
-			fullPath,
-			filePath: file.absolutePath,
-			isLayout: false,
-			isIndex: false,
-			isNotFound: true,
-			isPathlessGroup: false,
-			pageExports,
-			children: [],
-		}
-		current.children.push(notFoundNode)
+		insertNotFoundFile(current, file, dirs, currentPath)
 	} else if (fileInfo.isIndex) {
-		const fullPath = currentPath || '/'
-		const allExports = await extractPageExportsFromFile(file, dirs, '', true, currentPath, moduleLoader)
-		const { defaultExports, namedExports, hasDefault } = partitionExports(allExports)
-		const indexNode: FileRouteNode = {
-			segment: '',
+		await insertIndexFile(current, file, dirs, currentPath, moduleLoader)
+	} else {
+		await insertRegularFile(current, file, dirs, fileName, fileInfo.segment, currentPath, moduleLoader)
+	}
+}
+
+function insertNotFoundFile(current: FileRouteNode, file: ScannedFile, dirs: string[], currentPath: string): void {
+	const catchAllSegment = ':__notFound+'
+	const fullPath = joinPath(currentPath, catchAllSegment)
+	const pageId = dirs.length === 0 ? '404' : `${dirs.join('/')}/404`
+	const pageExports: PageExportInfo[] = [{
+		pageId,
+		exportName: 'default',
+		routePattern: fullPath,
+		params: [{ name: '__notFound', optional: false, array: false }],
+	}]
+	current.children.push({
+		segment: catchAllSegment,
+		fullPath,
+		filePath: file.absolutePath,
+		isLayout: false,
+		isIndex: false,
+		isNotFound: true,
+		isPathlessGroup: false,
+		pageExports,
+		children: [],
+	})
+}
+
+async function insertIndexFile(
+	current: FileRouteNode,
+	file: ScannedFile,
+	dirs: string[],
+	currentPath: string,
+	moduleLoader: ModuleLoader,
+): Promise<void> {
+	const fullPath = currentPath || '/'
+	const allExports = await extractPageExportsFromFile(file, dirs, '', true, currentPath, moduleLoader)
+	const { defaultExports, namedExports, hasDefault } = partitionExports(allExports)
+
+	current.children.push({
+		segment: '',
+		fullPath,
+		filePath: hasDefault ? file.absolutePath : undefined,
+		exportName: hasDefault ? 'default' : undefined,
+		isLayout: false,
+		isIndex: true,
+		isNotFound: false,
+		isPathlessGroup: false,
+		pageExports: hasDefault ? defaultExports : undefined,
+		children: [],
+	})
+
+	// Named exports become siblings (children of current, not of the index node)
+	insertNamedExportNodes(current, file, namedExports, currentPath)
+}
+
+async function insertRegularFile(
+	current: FileRouteNode,
+	file: ScannedFile,
+	dirs: string[],
+	fileName: string,
+	fileSegment: string,
+	currentPath: string,
+	moduleLoader: ModuleLoader,
+): Promise<void> {
+	const allExports = await extractPageExportsFromFile(file, dirs, fileName, false, currentPath, moduleLoader)
+	const { defaultExports, namedExports, hasDefault } = partitionExports(allExports)
+	const routeSegment = hasDefault ? deriveSegmentFromPageExports(defaultExports, currentPath) : undefined
+	const segment = routeSegment ?? fileSegment
+	const fullPath = joinPath(currentPath, segment)
+
+	if (hasDefault) {
+		checkCollision(current.children, segment, file.absolutePath, 'default')
+	}
+
+	// Reuse existing container node (created by a previous file's named exports) if available
+	let routeNode = !hasDefault ? current.children.find(c => c.segment === segment && !c.filePath && !c.isLayout && !c.isPathlessGroup) : undefined
+	if (!routeNode) {
+		routeNode = {
+			segment,
 			fullPath,
 			filePath: hasDefault ? file.absolutePath : undefined,
 			exportName: hasDefault ? 'default' : undefined,
 			isLayout: false,
-			isIndex: true,
+			isIndex: false,
 			isNotFound: false,
 			isPathlessGroup: false,
 			pageExports: hasDefault ? defaultExports : undefined,
 			children: [],
 		}
-		current.children.push(indexNode)
+		current.children.push(routeNode)
+	}
 
-		// Named exports become siblings (children of current, not of the index node)
-		for (const exp of namedExports) {
-			const namedSegment = exp.routePattern ? (computeRelativeSegment(currentPath, exp.routePattern) ?? exp.exportName) : exp.exportName
-			checkCollision(current.children, namedSegment, file.absolutePath, exp.exportName)
-			current.children.push({
-				segment: namedSegment,
-				fullPath: joinPath(currentPath, namedSegment),
-				filePath: file.absolutePath,
-				exportName: exp.exportName,
-				isLayout: false,
-				isIndex: false,
-				isNotFound: false,
-				isPathlessGroup: false,
-				pageExports: [exp],
-				children: [],
-			})
-		}
-	} else {
-		const allExports = await extractPageExportsFromFile(file, dirs, fileName, false, currentPath, moduleLoader)
-		const { defaultExports, namedExports, hasDefault } = partitionExports(allExports)
-		const routeSegment = hasDefault ? deriveSegmentFromPageExports(defaultExports, currentPath) : undefined
-		const segment = routeSegment ?? fileInfo.segment
-		const fullPath = joinPath(currentPath, segment)
+	// Named exports become children (equivalent to files in a subdirectory)
+	insertNamedExportNodes(routeNode, file, namedExports, fullPath)
+}
 
-		if (hasDefault) {
-			checkCollision(current.children, segment, file.absolutePath, 'default')
-		}
-
-		// Reuse existing container node (created by a previous file's named exports) if available
-		let routeNode = !hasDefault ? current.children.find(c => c.segment === segment && !c.filePath && !c.isLayout && !c.isPathlessGroup) : undefined
-		if (!routeNode) {
-			routeNode = {
-				segment,
-				fullPath,
-				filePath: hasDefault ? file.absolutePath : undefined,
-				exportName: hasDefault ? 'default' : undefined,
-				isLayout: false,
-				isIndex: false,
-				isNotFound: false,
-				isPathlessGroup: false,
-				pageExports: hasDefault ? defaultExports : undefined,
-				children: [],
-			}
-			current.children.push(routeNode)
-		}
-
-		// Named exports become children (equivalent to files in a subdirectory)
-		for (const exp of namedExports) {
-			const namedSegment = exp.routePattern ? (computeRelativeSegment(fullPath, exp.routePattern) ?? exp.exportName) : exp.exportName
-			checkCollision(routeNode.children, namedSegment, file.absolutePath, exp.exportName)
-			routeNode.children.push({
-				segment: namedSegment,
-				fullPath: joinPath(fullPath, namedSegment),
-				filePath: file.absolutePath,
-				exportName: exp.exportName,
-				isLayout: false,
-				isIndex: false,
-				isNotFound: false,
-				isPathlessGroup: false,
-				pageExports: [exp],
-				children: [],
-			})
-		}
+function insertNamedExportNodes(
+	parent: FileRouteNode,
+	file: ScannedFile,
+	namedExports: PageExportInfo[],
+	parentPath: string,
+): void {
+	for (const exp of namedExports) {
+		const namedSegment = exp.routePattern ? (computeRelativeSegment(parentPath, exp.routePattern) ?? exp.exportName) : exp.exportName
+		checkCollision(parent.children, namedSegment, file.absolutePath, exp.exportName)
+		parent.children.push({
+			segment: namedSegment,
+			fullPath: joinPath(parentPath, namedSegment),
+			filePath: file.absolutePath,
+			exportName: exp.exportName,
+			isLayout: false,
+			isIndex: false,
+			isNotFound: false,
+			isPathlessGroup: false,
+			pageExports: [exp],
+			children: [],
+		})
 	}
 }
 
