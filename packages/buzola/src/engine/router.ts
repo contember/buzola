@@ -353,7 +353,7 @@ export class Router {
 	 * Only fills params that are present in the target pattern.
 	 */
 	resolveParams(pattern: string, explicitParams?: Record<string, string>): Record<string, string> {
-		const paramNames = this.extractParamNames(pattern)
+		const paramNames = extractParamNames(pattern)
 		const currentParams = this.getCurrentParams()
 		const fallbackParams = this.persistentParamsFn?.() ?? {}
 		const result: Record<string, string> = {}
@@ -376,13 +376,6 @@ export class Router {
 		}
 
 		return result
-	}
-
-	/**
-	 * Extract parameter names from a route pattern.
-	 */
-	private extractParamNames(pattern: string): string[] {
-		return extractParamNames(pattern)
 	}
 
 	/**
