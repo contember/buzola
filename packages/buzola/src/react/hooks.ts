@@ -73,15 +73,21 @@ export function useSearchParams<T = Record<string, string>>(
 
 	return useMemo(() => {
 		const searchParams = context.state.location.searchParams
-		const raw: Record<string, string[]> = {}
+		const collected = new Map<string, string[]>()
 		searchParams.forEach((value, key) => {
-			const existing = raw[key]
+			const existing = collected.get(key)
 			if (existing) {
 				existing.push(value)
 			} else {
-				raw[key] = [value]
+				collected.set(key, [value])
 			}
 		})
+
+		// Single-value params are unwrapped to strings, multi-value remain as arrays
+		const raw: Record<string, string | string[]> = {}
+		for (const [key, values] of collected) {
+			raw[key] = values.length === 1 ? values[0] : values
+		}
 
 		if (schema) {
 			const result = schema['~standard'].validate(raw)
