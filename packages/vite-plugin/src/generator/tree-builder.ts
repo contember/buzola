@@ -141,10 +141,7 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 	} else if (fileInfo.isIndex) {
 		const fullPath = currentPath || '/'
 		const allExports = await extractPageExportsFromFile(file, dirs, '', true, currentPath, moduleLoader)
-		const defaultExports = allExports?.filter(e => e.exportName === 'default')
-		const namedExports = allExports?.filter(e => e.exportName !== 'default') ?? []
-
-		const hasDefault = defaultExports != null && defaultExports.length > 0
+		const { defaultExports, namedExports, hasDefault } = partitionExports(allExports)
 		const indexNode: FileRouteNode = {
 			segment: '',
 			fullPath,
@@ -178,10 +175,7 @@ async function insertFile(root: FileRouteNode, file: ScannedFile, moduleLoader: 
 		}
 	} else {
 		const allExports = await extractPageExportsFromFile(file, dirs, fileName, false, currentPath, moduleLoader)
-		const defaultExports = allExports?.filter(e => e.exportName === 'default')
-		const namedExports = allExports?.filter(e => e.exportName !== 'default') ?? []
-
-		const hasDefault = defaultExports != null && defaultExports.length > 0
+		const { defaultExports, namedExports, hasDefault } = partitionExports(allExports)
 		const routeSegment = hasDefault ? deriveSegmentFromPageExports(defaultExports, currentPath) : undefined
 		const segment = routeSegment ?? fileInfo.segment
 		const fullPath = joinPath(currentPath, segment)
@@ -316,6 +310,13 @@ async function extractPageExportsFromFile(
 	}
 
 	return result.length > 0 ? result : undefined
+}
+
+function partitionExports(allExports: PageExportInfo[] | undefined) {
+	const defaultExports = allExports?.filter(e => e.exportName === 'default')
+	const namedExports = allExports?.filter(e => e.exportName !== 'default') ?? []
+	const hasDefault = defaultExports != null && defaultExports.length > 0
+	return { defaultExports, namedExports, hasDefault }
 }
 
 function checkCollision(siblings: FileRouteNode[], segment: string, filePath: string, exportName: string): void {
