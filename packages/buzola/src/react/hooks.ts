@@ -93,7 +93,7 @@ export function useSearchParams<T = Record<string, string>>(
 			const result = schema['~standard'].validate(raw)
 			if ('issues' in result) {
 				throw new Error(
-					`Search params validation failed: ${result.issues.map(i => i.message).join(', ')}`,
+					`[buzola] Search params validation failed: ${result.issues.map(i => i.message).join(', ')}`,
 				)
 			}
 			return result.value

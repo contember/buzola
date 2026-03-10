@@ -312,9 +312,9 @@ export class Router {
 
 		if (missing.length > 0) {
 			if (!params) {
-				throw new Error(`Missing params for path "${pattern}": ${missing.join(', ')}`)
+				throw new Error(`[buzola] Missing params for path "${pattern}": ${missing.join(', ')}`)
 			}
-			throw new Error(`Missing param "${missing[0]}" for path "${pattern}"`)
+			throw new Error(`[buzola] Missing param "${missing[0]}" for path "${pattern}"`)
 		}
 
 		// Extra params (not in path pattern) → query string

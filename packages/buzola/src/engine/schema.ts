@@ -100,7 +100,7 @@ export function resolveParamLiteral(literal: ParamLiteral): {
 	const baseType = isArr ? rest.slice(0, -2) : rest
 
 	const validateScalar = scalarValidators[baseType]
-	if (!validateScalar) throw new Error(`Unknown param type: ${baseType}`)
+	if (!validateScalar) throw new Error(`[buzola] Unknown param type: ${baseType}`)
 
 	let validate: StandardSchema['~standard']['validate']
 
