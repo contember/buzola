@@ -1,7 +1,7 @@
 import { LoaderCache } from './loader-cache'
 import { matchRoutes } from './matcher'
 import type { BlockerFn, GuardRedirect, NavigateOptions, NavigationAdapter, RouteMatch, RouteNode, RouterState } from './types'
-import { extractParamNames } from './utils'
+import { extractParamNames, parseParamSegment } from './utils'
 
 function isGuardRedirect(value: unknown): value is GuardRedirect {
 	return typeof value === 'object' && value !== null && 'redirect' in value && typeof (value as GuardRedirect).redirect === 'string'
@@ -291,9 +291,7 @@ export class Router {
 
 		for (const segment of segments) {
 			if (segment.startsWith(':')) {
-				// Catch-all param (:slug+)
-				const isCatchAll = segment.endsWith('+')
-				const paramName = isCatchAll ? segment.slice(1, -1) : segment.slice(1)
+				const { name: paramName, isCatchAll } = parseParamSegment(segment)
 				const value = params?.[paramName]
 				if (value === undefined) {
 					missing.push(paramName)
@@ -451,9 +449,7 @@ export class Router {
 	private createMatchUrl(url: URL): URL {
 		if (!this._basePath) return url
 		const stripped = new URL(url)
-		if (stripped.pathname.startsWith(this._basePath)) {
-			stripped.pathname = stripped.pathname.slice(this._basePath.length) || '/'
-		}
+		stripped.pathname = this.stripBasePath(stripped.pathname)
 		return stripped
 	}
 

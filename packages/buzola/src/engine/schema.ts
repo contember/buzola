@@ -72,6 +72,17 @@ function object<T extends Record<string, StandardSchema>>(
 
 export const s = { object, string, optional }
 
+/**
+ * Validate a value against a Standard Schema, throwing on failure.
+ */
+export function validateSchema<T>(schema: StandardSchema<T>, value: unknown, errorPrefix: string): T {
+	const result = schema['~standard'].validate(value)
+	if ('issues' in result) {
+		throw new Error(`${errorPrefix}${result.issues.map(i => i.message).join(', ')}`)
+	}
+	return result.value
+}
+
 // ─── Param literals ─────────────────────────────────────────────────────────
 
 export type ParamLiteral = 'string' | 'number' | 'uuid' | '?string' | '?number' | '?uuid' | 'string[]' | 'number[]' | '?string[]' | '?number[]'

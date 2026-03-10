@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { type ComponentType, use, useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import type { LoaderCache } from '../engine/loader-cache'
-import { isOptionalSchema, type ParamLiteral, resolveParamLiteral } from '../engine/schema'
+import { isOptionalSchema, type ParamLiteral, resolveParamLiteral, validateSchema } from '../engine/schema'
 import type { RouteComponent, StandardSchema } from '../engine/types'
 import { extractParamNames } from '../engine/utils'
 import { RouteContext, RouterContext } from '../react/context'
@@ -216,13 +216,7 @@ function createPageComponent<TParams>(
 			}
 
 			if (schema) {
-				const result = schema['~standard'].validate(merged)
-				if ('issues' in result) {
-					throw new Error(
-						`Page params validation failed: ${result.issues.map(i => i.message).join(', ')}`,
-					)
-				}
-				return result.value
+				return validateSchema(schema, merged, 'Page params validation failed: ')
 			}
 
 			return merged as TParams

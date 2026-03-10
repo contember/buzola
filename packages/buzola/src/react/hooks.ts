@@ -1,5 +1,6 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Router } from '../engine/router'
+import { validateSchema } from '../engine/schema'
 import type { EffectivePageParams, NavigateOptions, RegisteredPage, RouterState, StandardSchema } from '../engine/types'
 import { RouteContext, RouterContext } from './context'
 
@@ -90,13 +91,7 @@ export function useSearchParams<T = Record<string, string>>(
 		}
 
 		if (schema) {
-			const result = schema['~standard'].validate(raw)
-			if ('issues' in result) {
-				throw new Error(
-					`[buzola] Search params validation failed: ${result.issues.map(i => i.message).join(', ')}`,
-				)
-			}
-			return result.value
+			return validateSchema(schema, raw, '[buzola] Search params validation failed: ')
 		}
 
 		return raw as T
