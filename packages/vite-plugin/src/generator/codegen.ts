@@ -115,7 +115,7 @@ interface PageInfo {
 /**
  * Collect page info from the file route tree for codegen.
  */
-function collectPages(nodes: FileRouteNode[], parentPath = ''): PageInfo[] {
+function collectPages(nodes: FileRouteNode[]): PageInfo[] {
 	const result: PageInfo[] = []
 
 	for (const node of nodes) {
@@ -132,7 +132,7 @@ function collectPages(nodes: FileRouteNode[], parentPath = ''): PageInfo[] {
 		}
 
 		if (node.children.length > 0) {
-			result.push(...collectPages(node.children, node.fullPath))
+			result.push(...collectPages(node.children))
 		}
 	}
 
@@ -204,11 +204,4 @@ function generateTreeConfig(
 
 		lines.push(`${pad}},`)
 	}
-}
-
-/**
- * Generate the virtual module content for `virtual:buzola/routes`.
- */
-export function generateVirtualModule(outputPath: string): string {
-	return `export { routes, pageRegistry } from '${outputPath.replace(/\.ts$/, '')}';\n`
 }
