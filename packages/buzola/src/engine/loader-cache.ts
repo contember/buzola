@@ -8,6 +8,9 @@ export class LoaderCache {
 	private _maxSize: number
 
 	constructor(maxSize: number) {
+		if (maxSize < 0) {
+			throw new Error(`[buzola] LoaderCache maxSize must be non-negative, got ${maxSize}`)
+		}
 		this._maxSize = maxSize
 	}
 
