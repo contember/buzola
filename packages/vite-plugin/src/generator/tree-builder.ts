@@ -339,12 +339,19 @@ function sortChildren(node: FileRouteNode): void {
 	node.children.sort((a, b) => sortWeight(a) - sortWeight(b))
 }
 
+/** Sort precedence: static routes first, then dynamic, catch-all, not-found last. */
+const SORT_INDEX = 0
+const SORT_STATIC = 1
+const SORT_DYNAMIC = 2
+const SORT_CATCHALL = 3
+const SORT_NOT_FOUND = 4
+
 function sortWeight(node: FileRouteNode): number {
-	if (node.isIndex) return 0
-	if (node.isNotFound) return 4
-	if (node.segment.includes(':') && node.segment.includes('+')) return 3
-	if (node.segment.includes(':')) return 2
-	return 1
+	if (node.isIndex) return SORT_INDEX
+	if (node.isNotFound) return SORT_NOT_FOUND
+	if (node.segment.includes(':') && node.segment.includes('+')) return SORT_CATCHALL
+	if (node.segment.includes(':')) return SORT_DYNAMIC
+	return SORT_STATIC
 }
 
 function joinPath(parent: string, child: string): string {
