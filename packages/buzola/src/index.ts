@@ -36,7 +36,7 @@ export { s } from './engine/schema.js'
 
 // ─── Route definition ───────────────────────────────────────────────────────
 export { BuzolaRedirect, createPage, redirect } from './define/create-page.js'
-export type { CatchContext, PageDefinition, PageProps } from './define/create-page.js'
+export type { CatchContext, PageDefinition, PageProps, RedirectFn } from './define/create-page.js'
 
 // ─── React (re-export from subpath) ─────────────────────────────────────────
 export {

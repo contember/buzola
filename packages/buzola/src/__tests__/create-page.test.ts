@@ -589,9 +589,16 @@ describe('navigate with extra params (integration)', () => {
 
 describe('redirect()', () => {
 	it('returns a BuzolaRedirect instance', () => {
-		const r = redirect('/login')
+		const r = redirect('LoginPage' as any)
 		expect(r).toBeInstanceOf(BuzolaRedirect)
-		expect(r.location).toBe('/login')
+		expect(r.pageId).toBe('LoginPage')
+	})
+
+	it('stores params on the redirect', () => {
+		const r = redirect('UserPage' as any, { userId: '123' } as any)
+		expect(r).toBeInstanceOf(BuzolaRedirect)
+		expect(r.pageId).toBe('UserPage')
+		expect(r.params).toEqual({ userId: '123' })
 	})
 
 	it('loader receives redirect in context', async () => {
@@ -609,9 +616,9 @@ describe('redirect()', () => {
 	})
 
 	it('redirect() result is recognized as BuzolaRedirect', () => {
-		const r = redirect('/dashboard')
+		const r = redirect('DashboardPage' as any)
 		expect(r instanceof BuzolaRedirect).toBe(true)
 		expect(r.__buzolaRedirect).toBe(true)
-		expect(r.location).toBe('/dashboard')
+		expect(r.pageId).toBe('DashboardPage')
 	})
 })
