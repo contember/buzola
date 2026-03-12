@@ -116,6 +116,35 @@ describe('matchRoutes', () => {
 		expect(matches).toBeNull()
 	})
 
+	it('matches routes with trailing slash', () => {
+		const tree = createTestTree([
+			{ path: '/about', component: dummyComponent },
+		])
+
+		const matches = matchRoutes(tree, new URL('http://localhost/about/'))
+		expect(matches).not.toBeNull()
+		expect(matches).toHaveLength(1)
+		expect(matches![0].node.fullPath).toBe('/about')
+	})
+
+	it('matches nested routes with trailing slash', () => {
+		const tree = createTestTree([
+			{
+				path: '/users',
+				component: dummyComponent,
+				isLayout: true,
+				children: [
+					{ path: '/:userId', component: dummyComponent },
+				],
+			},
+		])
+
+		const matches = matchRoutes(tree, new URL('http://localhost/users/42/'))
+		expect(matches).not.toBeNull()
+		expect(matches).toHaveLength(2)
+		expect(matches![1].params).toEqual({ userId: '42' })
+	})
+
 	it('does not match partial paths', () => {
 		const tree = createTestTree([
 			{ path: '/about', component: dummyComponent },

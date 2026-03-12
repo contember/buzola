@@ -50,7 +50,8 @@ export function createRouteNode(options: CreateRouteNodeOptions): RouteNode {
 	let pattern: URLPattern | undefined
 	let prefixPattern: URLPattern | undefined
 	if (!isLayout || isIndex) {
-		pattern = new URLPattern({ pathname: fullPath === '' ? '/' : fullPath })
+		const p = fullPath === '' ? '/' : fullPath
+		pattern = new URLPattern({ pathname: p === '/' ? p : `${p}{/}?` })
 	}
 	if (isLayout && !isIndex) {
 		// Layouts get a prefix pattern that matches any path starting with their fullPath.
