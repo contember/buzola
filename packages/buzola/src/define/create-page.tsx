@@ -11,12 +11,15 @@ export interface PageProps<TParams> {
 	params: TParams
 }
 
-export interface CatchContext {
+export interface CatchContext<TParams = Record<string, never>> {
 	error: Error
+	params: TParams
 	retry: () => void
 }
 
-type CatchHandler = React.ReactNode | ((ctx: CatchContext) => React.ReactNode)
+type CatchHandler<TParams = Record<string, never>> =
+	| React.ReactNode
+	| ((ctx: CatchContext<TParams>) => React.ReactNode)
 
 export interface ParamMeta {
 	name: string
@@ -159,7 +162,7 @@ function createPageComponent<TParams>(
 	loaderFn: LoaderFn | undefined,
 	routePattern: string | undefined,
 	RenderComponent: ComponentType<any>,
-	catchHandler?: CatchHandler,
+	catchHandler?: CatchHandler<TParams>,
 ): PageDefinition<TParams> {
 	const arrayParams = new Set(paramsMeta.filter(m => m.array).map(m => m.name))
 
@@ -287,7 +290,12 @@ function createPageComponent<TParams>(
 		const retry = useCallback(() => setRetryCount(c => c + 1), [])
 		const resetKey = `${routeContext?.state.location.href ?? ''}:${retryCount}`
 		const boundFallback = typeof catchHandler === 'function'
-			? (error: Error) => (catchHandler as (ctx: CatchContext) => React.ReactNode)({ error, retry })
+			? (error: Error) =>
+				(catchHandler as (ctx: CatchContext<TParams>) => React.ReactNode)({
+					error,
+					params: (routeContext?.params ?? {}) as TParams,
+					retry,
+				})
 			: catchHandler
 		return (
 			<ErrorBoundary fallback={boundFallback} resetKey={resetKey}>
@@ -318,11 +326,11 @@ interface WithCatch<TParams, TRenderProps> {
 }
 
 interface WithRoute<TParams, TRenderProps> {
-	catch(handler: CatchHandler): WithCatch<TParams, TRenderProps>
+	catch(handler: CatchHandler<TParams>): WithCatch<TParams, TRenderProps>
 	route<R extends string>(
 		pattern: [ExtractRouteParams<R>] extends [keyof TParams & string] ? R : never,
 	): {
-		catch(handler: CatchHandler): { render(fn: ComponentType<TRenderProps>): PageDefinition<TParams> }
+		catch(handler: CatchHandler<TParams>): { render(fn: ComponentType<TRenderProps>): PageDefinition<TParams> }
 		render(fn: ComponentType<TRenderProps>): PageDefinition<TParams>
 	}
 	render(fn: ComponentType<TRenderProps>): PageDefinition<TParams>
@@ -348,11 +356,11 @@ interface PageBuilder {
 	loader<TData extends Record<string, unknown>>(
 		fn: (ctx: { params: Record<string, never>; redirect: RedirectFn }) => Promise<TData | BuzolaRedirect>,
 	): WithLoaderChain<Record<string, never>, TData>
-	catch(handler: CatchHandler): WithCatch<Record<string, never>, PageProps<Record<string, never>>>
+	catch(handler: CatchHandler<Record<string, never>>): WithCatch<Record<string, never>, PageProps<Record<string, never>>>
 	route<R extends string>(
 		pattern: [ExtractRouteParams<R>] extends [never] ? R : never,
 	): {
-		catch(handler: CatchHandler): { render(fn: ComponentType<PageProps<Record<string, never>>>): PageDefinition }
+		catch(handler: CatchHandler<Record<string, never>>): { render(fn: ComponentType<PageProps<Record<string, never>>>): PageDefinition }
 		render(fn: ComponentType<PageProps<Record<string, never>>>): PageDefinition
 	}
 	render(fn: ComponentType<PageProps<Record<string, never>>>): PageDefinition
@@ -362,7 +370,7 @@ function withCatchAndRender(
 	schema: StandardSchema | undefined,
 	paramsMeta: ParamMeta[],
 	loaders: LoaderFn[],
-	catchHandler: CatchHandler,
+	catchHandler: CatchHandler<any>,
 ) {
 	return {
 		route(pattern: string) {
@@ -387,12 +395,12 @@ function withRouteAndRender(
 		loader(loaderFn: LoaderFn) {
 			return withRouteAndRender(schema, paramsMeta, [...loaders, loaderFn])
 		},
-		catch(handler: CatchHandler) {
+		catch(handler: CatchHandler<any>) {
 			return withCatchAndRender(schema, paramsMeta, loaders, handler)
 		},
 		route(pattern: string) {
 			return {
-				catch(handler: CatchHandler) {
+				catch(handler: CatchHandler<any>) {
 					return {
 						render(fn: ComponentType<any>) {
 							return createPageComponent(schema, paramsMeta, combineLoaders(loaders), pattern, fn, handler)
