@@ -5,7 +5,7 @@ export default function RootLayout() {
 	return (
 		<div>
 			<nav>
-				<Link to="index">Home</Link>
+				<Link to="home">Home</Link>
 				<Link to="about">About</Link>
 				<Link to="users">Users</Link>
 				<Link to="users/detail" params={{ userId: '1' }}>User 1</Link>
