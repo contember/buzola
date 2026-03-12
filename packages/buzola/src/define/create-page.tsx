@@ -175,7 +175,7 @@ function createPageComponent<TParams>(
 	let activeUrlHref: string | null = null
 	let activeCacheKey: string | null = null
 	let activePromise: Promise<unknown> | null = null
-	let activeResolvedData: unknown = undefined
+	let activeResolvedData: unknown
 	let hasResolved = false
 	let pendingBackgroundKey: string | null = null
 
@@ -261,8 +261,9 @@ function createPageComponent<TParams>(
 
 		const loaderCache = router?.loaderCache
 
-		let data: unknown = undefined
+		let data: unknown
 		let isLoading = false
+		let shouldRedirect = false
 
 		if (loaderFn) {
 			const currentUrlHref = routeContext.state.location.href
@@ -348,11 +349,14 @@ function createPageComponent<TParams>(
 				const result = use(promise)
 				if (result instanceof BuzolaRedirect) {
 					router?.navigateToPage(result.pageId, result.params, { replace: true })
-					return null
+					shouldRedirect = true
+				} else {
+					data = result
 				}
-				data = result
-				activeResolvedData = data
-				hasResolved = true
+				if (!shouldRedirect) {
+					activeResolvedData = data
+					hasResolved = true
+				}
 			}
 		}
 
@@ -370,6 +374,8 @@ function createPageComponent<TParams>(
 				activeUrlHref = null
 			}
 		}, [])
+
+		if (shouldRedirect) return null
 
 		return <RenderComponent params={params} data={data} invalidate={invalidate} isLoading={isLoading} />
 	}
