@@ -1,8 +1,8 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Router } from '../engine/router'
-import { validateSchema } from '../engine/schema'
-import type { EffectivePageParams, NavigateOptions, RegisteredPage, RouterState, StandardSchema } from '../engine/types'
-import { RouteContext, RouterContext } from './context'
+import type { Router } from '../engine/router.js'
+import { validateSchema } from '../engine/schema.js'
+import type { EffectivePageParams, NavigateOptions, RegisteredPage, RouterState, StandardSchema } from '../engine/types.js'
+import { RouteContext, RouterContext } from './context.js'
 
 /**
  * Get the Router instance.

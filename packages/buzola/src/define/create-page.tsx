@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react'
 import { type ComponentType, use, useCallback, useEffect, useMemo, useReducer, useState } from 'react'
-import type { LoaderCache } from '../engine/loader-cache'
-import { isOptionalSchema, type ParamLiteral, resolveParamLiteral, validateSchema } from '../engine/schema'
-import type { RouteComponent, StandardSchema } from '../engine/types'
-import { extractParamNames } from '../engine/utils'
-import { RouteContext, RouterContext } from '../react/context'
-import { ErrorBoundary } from '../react/error-boundary'
+import type { LoaderCache } from '../engine/loader-cache.js'
+import { isOptionalSchema, type ParamLiteral, resolveParamLiteral, validateSchema } from '../engine/schema.js'
+import type { RouteComponent, StandardSchema } from '../engine/types.js'
+import { extractParamNames } from '../engine/utils.js'
+import { RouteContext, RouterContext } from '../react/context.js'
+import { ErrorBoundary } from '../react/error-boundary.js'
 
 export interface PageProps<TParams> {
 	params: TParams

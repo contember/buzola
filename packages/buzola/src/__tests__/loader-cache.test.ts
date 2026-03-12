@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { LoaderCache } from '../engine/loader-cache'
+import { LoaderCache } from '../engine/loader-cache.js'
 
 describe('LoaderCache', () => {
 	it('stores and retrieves values', () => {

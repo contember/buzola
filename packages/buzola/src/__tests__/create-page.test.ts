@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { createElement } from 'react'
-import { createPage } from '../define/create-page'
-import { createMemoryNavigationAdapter } from '../engine/navigation-adapter'
-import { buildRouteTree } from '../engine/route-tree'
-import { Router } from '../engine/router'
-import { s } from '../engine/schema'
-import type { RouteConfig, StandardSchema } from '../engine/types'
+import { createPage } from '../define/create-page.js'
+import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
+import { buildRouteTree } from '../engine/route-tree.js'
+import { Router } from '../engine/router.js'
+import { s } from '../engine/schema.js'
+import type { RouteConfig, StandardSchema } from '../engine/types.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

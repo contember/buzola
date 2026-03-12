@@ -1,4 +1,4 @@
-import type { StandardSchema } from './types'
+import type { StandardSchema } from './types.js'
 
 /**
  * Built-in minimal Standard Schema builders for route params.

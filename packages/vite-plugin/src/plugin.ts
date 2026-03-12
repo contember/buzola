@@ -1,10 +1,10 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
-import { generateRouteModule } from './generator/codegen'
-import type { ModuleLoader } from './generator/page-extractor'
-import { scanRouteFiles } from './generator/scanner'
-import { buildFileRouteTree } from './generator/tree-builder'
+import { generateRouteModule } from './generator/codegen.js'
+import type { ModuleLoader } from './generator/page-extractor.js'
+import { scanRouteFiles } from './generator/scanner.js'
+import { buildFileRouteTree } from './generator/tree-builder.js'
 
 export interface BuzolaPluginOptions {
 	/**

@@ -1,7 +1,7 @@
-import { LoaderCache } from './loader-cache'
-import { matchRoutes } from './matcher'
-import type { BlockerFn, GuardRedirect, NavigateOptions, NavigationAdapter, RouteMatch, RouteNode, RouterState } from './types'
-import { extractParamNames, parseParamSegment } from './utils'
+import { LoaderCache } from './loader-cache.js'
+import { matchRoutes } from './matcher.js'
+import type { BlockerFn, GuardRedirect, NavigateOptions, NavigationAdapter, RouteMatch, RouteNode, RouterState } from './types.js'
+import { extractParamNames, parseParamSegment } from './utils.js'
 
 function isGuardRedirect(value: unknown): value is GuardRedirect {
 	return typeof value === 'object' && value !== null && 'redirect' in value && typeof (value as GuardRedirect).redirect === 'string'

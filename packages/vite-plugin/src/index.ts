@@ -1,17 +1,17 @@
-export { buzolaPlugin } from './plugin'
-export type { BuzolaPluginOptions } from './plugin'
+export { buzolaPlugin } from './plugin.js'
+export type { BuzolaPluginOptions } from './plugin.js'
 
-export { scanRouteFiles } from './generator/scanner'
-export type { ScannedFile } from './generator/scanner'
+export { scanRouteFiles } from './generator/scanner.js'
+export type { ScannedFile } from './generator/scanner.js'
 
-export { buildFileRouteTree } from './generator/tree-builder'
-export type { FileRouteNode, PageExportInfo } from './generator/tree-builder'
+export { buildFileRouteTree } from './generator/tree-builder.js'
+export type { FileRouteNode, PageExportInfo } from './generator/tree-builder.js'
 
-export { generateRouteModule } from './generator/codegen'
-export type { CodegenOptions } from './generator/codegen'
+export { generateRouteModule } from './generator/codegen.js'
+export type { CodegenOptions } from './generator/codegen.js'
 
-export { extractPages } from './generator/page-extractor'
-export type { ExtractedPage, ExtractedParam, ModuleLoader } from './generator/page-extractor'
+export { extractPages } from './generator/page-extractor.js'
+export type { ExtractedPage, ExtractedParam, ModuleLoader } from './generator/page-extractor.js'
 
-export { isRouteFile, parseDirName, parseFileName, parseRouteFile } from './conventions'
-export type { ParsedRouteFile } from './conventions'
+export { isRouteFile, parseDirName, parseFileName, parseRouteFile } from './conventions.js'
+export type { ParsedRouteFile } from './conventions.js'

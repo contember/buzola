@@ -1,5 +1,5 @@
 import * as path from 'node:path'
-import type { FileRouteNode } from './tree-builder'
+import type { FileRouteNode } from './tree-builder.js'
 
 export interface CodegenOptions {
 	/** The route tree from file scanning. */

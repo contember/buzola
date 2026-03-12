@@ -1,4 +1,4 @@
-import type { RouteComponent, RouteConfig, RouteGuard, RouteNode, StandardSchema } from './types'
+import type { RouteComponent, RouteConfig, RouteGuard, RouteNode, StandardSchema } from './types.js'
 
 /**
  * Normalize a path segment — ensure it starts with "/" and strip trailing slashes.

@@ -1,4 +1,4 @@
-import type { RouteMatch, RouteNode } from './types'
+import type { RouteMatch, RouteNode } from './types.js'
 
 /**
  * Match a URL against the route tree.

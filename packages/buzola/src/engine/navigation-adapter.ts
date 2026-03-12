@@ -1,4 +1,4 @@
-import type { BuzolaNavigateEvent, NavigateOptions, NavigationAdapter } from './types'
+import type { BuzolaNavigateEvent, NavigateOptions, NavigationAdapter } from './types.js'
 
 // ─── Browser adapter ────────────────────────────────────────────────────────
 

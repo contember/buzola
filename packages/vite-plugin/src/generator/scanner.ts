@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { isRouteFile } from '../conventions'
+import { isRouteFile } from '../conventions.js'
 
 export interface ScannedFile {
 	/** Absolute path to the file. */

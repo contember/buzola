@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import type { ModuleLoader } from '../generator/page-extractor'
-import type { ScannedFile } from '../generator/scanner'
-import { buildFileRouteTree } from '../generator/tree-builder'
+import type { ModuleLoader } from '../generator/page-extractor.js'
+import type { ScannedFile } from '../generator/scanner.js'
+import { buildFileRouteTree } from '../generator/tree-builder.js'
 
 /** Module loader that returns empty modules (no page exports). */
 const emptyLoader: ModuleLoader = async () => ({})

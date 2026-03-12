@@ -1,16 +1,16 @@
 // ─── Engine ─────────────────────────────────────────────────────────────────
-export { LoaderCache } from './engine/loader-cache'
+export { LoaderCache } from './engine/loader-cache.js'
 
-export { NavigationAbortedError, Router } from './engine/router'
-export type { RouterOptions, RouterSubscriber } from './engine/router'
+export { NavigationAbortedError, Router } from './engine/router.js'
+export type { RouterOptions, RouterSubscriber } from './engine/router.js'
 
-export { buildRouteTree, createRouteNode } from './engine/route-tree'
-export type { CreateRouteNodeOptions } from './engine/route-tree'
+export { buildRouteTree, createRouteNode } from './engine/route-tree.js'
+export type { CreateRouteNodeOptions } from './engine/route-tree.js'
 
-export { matchRoutes } from './engine/matcher'
+export { matchRoutes } from './engine/matcher.js'
 
-export { createBrowserNavigationAdapter, createMemoryNavigationAdapter } from './engine/navigation-adapter'
-export type { MemoryNavigationAdapterOptions } from './engine/navigation-adapter'
+export { createBrowserNavigationAdapter, createMemoryNavigationAdapter } from './engine/navigation-adapter.js'
+export type { MemoryNavigationAdapterOptions } from './engine/navigation-adapter.js'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type {
@@ -33,14 +33,14 @@ export type {
 	RouteNode,
 	RouterState,
 	StandardSchema,
-} from './engine/types'
+} from './engine/types.js'
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
-export { s } from './engine/schema'
+export { s } from './engine/schema.js'
 
 // ─── Route definition ───────────────────────────────────────────────────────
-export { createPage } from './define/create-page'
-export type { CatchContext, PageDefinition, PageProps } from './define/create-page'
+export { createPage } from './define/create-page.js'
+export type { CatchContext, PageDefinition, PageProps } from './define/create-page.js'
 
 // ─── React (re-export from subpath) ─────────────────────────────────────────
 export {
@@ -59,5 +59,5 @@ export {
 	useRouter,
 	useRouterState,
 	useSearchParams,
-} from './react/index'
-export type { BlockerState, BuzolaProviderProps, LinkProps, OutletProps, RouteContextValue } from './react/index'
+} from './react/index.js'
+export type { BlockerState, BuzolaProviderProps, LinkProps, OutletProps, RouteContextValue } from './react/index.js'

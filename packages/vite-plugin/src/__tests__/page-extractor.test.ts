@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { extractPages } from '../generator/page-extractor'
+import { extractPages } from '../generator/page-extractor.js'
 
 describe('extractPages', () => {
 	it('extracts default page export', async () => {

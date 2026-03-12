@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { generateRouteModule } from '../generator/codegen'
+import { generateRouteModule } from '../generator/codegen.js'
 
 describe('generateRouteModule', () => {
 	it('emits BuzolaPersistentParams when persistentParams is provided', () => {

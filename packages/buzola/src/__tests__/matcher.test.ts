@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { matchRoutes } from '../engine/matcher'
-import { buildRouteTree } from '../engine/route-tree'
-import type { RouteConfig } from '../engine/types'
+import { matchRoutes } from '../engine/matcher.js'
+import { buildRouteTree } from '../engine/route-tree.js'
+import type { RouteConfig } from '../engine/types.js'
 
 function dummyComponent() {
 	return null

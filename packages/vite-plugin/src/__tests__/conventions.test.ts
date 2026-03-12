@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { isRouteFile, parseDirName, parseFileName, parseRouteFile } from '../conventions'
+import { isRouteFile, parseDirName, parseFileName, parseRouteFile } from '../conventions.js'
 
 describe('isRouteFile', () => {
 	it('accepts .tsx files', () => {

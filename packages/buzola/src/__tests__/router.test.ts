@@ -1,8 +1,8 @@
 import { describe, expect, it, mock } from 'bun:test'
-import { createMemoryNavigationAdapter } from '../engine/navigation-adapter'
-import { buildRouteTree } from '../engine/route-tree'
-import { Router } from '../engine/router'
-import type { GuardContext, RouteConfig } from '../engine/types'
+import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
+import { buildRouteTree } from '../engine/route-tree.js'
+import { Router } from '../engine/router.js'
+import type { GuardContext, RouteConfig } from '../engine/types.js'
 
 function dummyComponent() {
 	return null

@@ -1,6 +1,6 @@
 import { createContext } from 'react'
-import type { Router } from '../engine/router'
-import type { RouteMatch, RouterState } from '../engine/types'
+import type { Router } from '../engine/router.js'
+import type { RouteMatch, RouterState } from '../engine/types.js'
 
 /**
  * Context providing the Router instance.

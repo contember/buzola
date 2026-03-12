@@ -1,8 +1,8 @@
 import * as path from 'node:path'
-import { parseDirName, parseFileName } from '../conventions'
-import type { ExtractedPage, ModuleLoader } from './page-extractor'
-import { extractPages } from './page-extractor'
-import type { ScannedFile } from './scanner'
+import { parseDirName, parseFileName } from '../conventions.js'
+import type { ExtractedPage, ModuleLoader } from './page-extractor.js'
+import { extractPages } from './page-extractor.js'
+import type { ScannedFile } from './scanner.js'
 
 /**
  * Page export info attached to a file route node.

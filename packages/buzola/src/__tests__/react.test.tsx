@@ -1,11 +1,11 @@
-import './setup-dom'
+import './setup-dom.js'
 import { act, cleanup, fireEvent, render, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import React from 'react'
-import { createMemoryNavigationAdapter } from '../engine/navigation-adapter'
-import { buildRouteTree } from '../engine/route-tree'
-import { Router } from '../engine/router'
-import type { RouteConfig, StandardSchema } from '../engine/types'
+import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
+import { buildRouteTree } from '../engine/route-tree.js'
+import { Router } from '../engine/router.js'
+import type { RouteConfig, StandardSchema } from '../engine/types.js'
 import {
 	BuzolaProvider,
 	ErrorBoundary,
@@ -20,7 +20,7 @@ import {
 	useRouter,
 	useRouterState,
 	useSearchParams,
-} from '../react'
+} from '../react/index.js'
 
 afterEach(cleanup)
 
