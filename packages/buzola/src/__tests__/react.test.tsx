@@ -716,6 +716,37 @@ describe('Link', () => {
 		navigateSpy.mockRestore()
 	})
 
+	it('renders child element with asChild', () => {
+		const { container } = renderWithRouter(
+			<Link to={'about' as any} asChild>
+				<button type="button">Go</button>
+			</Link>,
+			configs,
+			'http://localhost/',
+			{ pageRegistry: registry },
+		)
+
+		// Should render a <button>, not an <a>
+		const button = container.querySelector('button')!
+		expect(button).toBeTruthy()
+		expect(button.getAttribute('href')).toBe('/about')
+		expect(container.querySelector('a')).toBeNull()
+	})
+
+	it('sets data-active on asChild element', () => {
+		const { container } = renderWithRouter(
+			<Link to={'about' as any} asChild>
+				<button type="button">Go</button>
+			</Link>,
+			configs,
+			'http://localhost/about',
+			{ pageRegistry: registry },
+		)
+
+		const button = container.querySelector('button')!
+		expect(button.hasAttribute('data-active')).toBe(true)
+	})
+
 	it('uses programmatic navigation for state', () => {
 		function TestLink() {
 			return <Link to={'about' as any} state={{ from: 'test' }}>Go</Link>

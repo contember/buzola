@@ -22,6 +22,11 @@ type LinkPropsBase = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>
 	 * When `false`, `data-active` is also set when the current path starts with the link target.
 	 */
 	activeExact?: boolean
+	/**
+	 * Render as child element instead of `<a>`.
+	 * When `true`, clones the single child element and merges `href`, `onClick`, and `data-active` props into it.
+	 */
+	asChild?: boolean
 }
 
 export type LinkProps<P extends RegisteredPage = RegisteredPage> = [keyof EffectivePageParams<P>] extends [never]
@@ -47,6 +52,7 @@ export function Link<P extends RegisteredPage>(props: LinkProps<P>): React.React
 		viewTransition,
 		resetScroll,
 		activeExact = true,
+		asChild,
 		onClick,
 		children,
 		...rest
@@ -84,6 +90,16 @@ export function Link<P extends RegisteredPage>(props: LinkProps<P>): React.React
 		},
 		[onClick, needsProgrammaticNav, router, to, params, replace, state, viewTransition, resetScroll],
 	)
+
+	if (asChild) {
+		const child = React.Children.only(children) as React.ReactElement<any>
+		return React.cloneElement(child, {
+			href,
+			onClick: handleClick,
+			'data-active': isActive ? '' : undefined,
+			...rest,
+		})
+	}
 
 	return (
 		<a href={href} onClick={handleClick} data-active={isActive ? '' : undefined} {...rest}>
