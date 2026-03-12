@@ -57,6 +57,8 @@ export type RouteComponent = ComponentType<Record<string, never>> | LazyExoticCo
 export interface RouteConfig {
 	/** The path segment for this route. */
 	path: string
+	/** Override the URL path for matching (absolute, not joined with parent). */
+	matchPath?: string
 	/** Component to render for this route. */
 	component?: RouteComponent
 	/** Schema for validating search params (Standard Schema compatible). */

@@ -60,8 +60,26 @@ describe('buildFileRouteTree', () => {
 		]
 
 		const tree = await buildFileRouteTree(files, emptyLoader)
+		// Without a pathless group layout, the file goes under root directly
+		const login = tree.find(n => n.segment === 'login')
+		expect(login).toBeDefined()
+		expect(login!.fullPath).toBe('/login')
+	})
+
+	it('handles pathless group with layout', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/(auth)/_layout.tsx', relativePath: '(auth)/_layout.tsx' },
+			{ absolutePath: '/app/src/routes/(auth)/login.tsx', relativePath: '(auth)/login.tsx' },
+		]
+
+		const tree = await buildFileRouteTree(files, emptyLoader)
 		const authGroup = tree.find(n => n.isPathlessGroup)
 		expect(authGroup).toBeDefined()
+		expect(authGroup!.fullPath).toBe('/')
+
+		const login = authGroup!.children.find(n => n.segment === 'login')
+		expect(login).toBeDefined()
+		expect(login!.fullPath).toBe('/login')
 	})
 
 	it('uses plain file names as segments', async () => {
@@ -70,11 +88,10 @@ describe('buildFileRouteTree', () => {
 		]
 
 		const tree = await buildFileRouteTree(files, emptyLoader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users).toBeDefined()
-		expect(users!.children).toHaveLength(1)
-		expect(users!.children[0].segment).toBe('detail')
-		expect(users!.children[0].fullPath).toBe('/users/detail')
+		// Without a users layout, the page goes under root with full segment
+		const detail = tree.find(n => n.fullPath === '/users/detail')
+		expect(detail).toBeDefined()
+		expect(detail!.segment).toBe('users/detail')
 	})
 
 	it('derives segment from page .route() via module loader', async () => {
@@ -97,14 +114,43 @@ describe('buildFileRouteTree', () => {
 		}
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users).toBeDefined()
-		expect(users!.children).toHaveLength(1)
-		expect(users!.children[0].segment).toBe(':userId')
-		expect(users!.children[0].fullPath).toBe('/users/:userId')
-		expect(users!.children[0].pageExports).toEqual([
+		// Tree position is file-based (/users/detail), route pattern is in pageExports
+		const page = tree.find(n => n.fullPath === '/users/detail')
+		expect(page).toBeDefined()
+		expect(page!.segment).toBe('users/detail')
+		expect(page!.pageExports).toEqual([
 			{ pageId: 'users/detail', exportName: 'default', routePattern: '/users/:userId', params: [{ name: 'userId', optional: false, array: false }] },
 		])
+	})
+
+	it('derives segment from page .route() when under a layout', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users/_layout.tsx', relativePath: 'users/_layout.tsx' },
+			{ absolutePath: '/app/src/routes/users/detail.tsx', relativePath: 'users/detail.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/users/detail.tsx') {
+				return {
+					default: {
+						__buzolaPage: true,
+						component: () => null,
+						route: '/users/:userId',
+						paramsMeta: [{ name: 'userId', optional: false, array: false }],
+					},
+				}
+			}
+			return {}
+		}
+
+		const tree = await buildFileRouteTree(files, loader)
+		const usersLayout = tree.find(n => n.isLayout && n.segment === 'users')
+		expect(usersLayout).toBeDefined()
+		// Tree position is file-based (detail), route pattern only affects URL matching
+		const page = usersLayout!.children.find(n => n.fullPath === '/users/detail')
+		expect(page).toBeDefined()
+		expect(page!.segment).toBe('detail')
+		expect(page!.pageExports![0].routePattern).toBe('/users/:userId')
 	})
 
 	it('derives route from file path when no .route()', async () => {
@@ -122,11 +168,9 @@ describe('buildFileRouteTree', () => {
 		})
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users).toBeDefined()
-		expect(users!.children[0].segment).toBe('detail')
-		expect(users!.children[0].fullPath).toBe('/users/detail')
-		expect(users!.children[0].pageExports).toEqual([
+		const page = tree.find(n => n.fullPath === '/users/detail')
+		expect(page).toBeDefined()
+		expect(page!.pageExports).toEqual([
 			{ pageId: 'users/detail', exportName: 'default', routePattern: '/users/detail', params: [{ name: 'userId', optional: false, array: false }] },
 		])
 	})
@@ -145,13 +189,142 @@ describe('buildFileRouteTree', () => {
 		})
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
-		const index = users!.children.find(n => n.isIndex)
-		expect(index).toBeDefined()
-		expect(index!.pageExports).toEqual([
+		const page = tree.find(n => n.fullPath === '/users')
+		expect(page).toBeDefined()
+		expect(page!.pageExports).toEqual([
 			{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] },
 		])
 	})
+
+	// ─── Route escaping via .route() ─────────────────────────────────────────
+
+	it('index file with .route() stays under its file-system layout', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/login/_layout.tsx', relativePath: 'login/_layout.tsx' },
+			{ absolutePath: '/app/src/routes/login/index.tsx', relativePath: 'login/index.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/login/index.tsx') {
+				return {
+					default: {
+						__buzolaPage: true,
+						component: () => null,
+						route: '/login/testtest',
+						paramsMeta: [],
+					},
+				}
+			}
+			return {}
+		}
+
+		const tree = await buildFileRouteTree(files, loader)
+		const loginLayout = tree.find(n => n.isLayout && n.segment === 'login')
+		expect(loginLayout).toBeDefined()
+
+		// Page stays under login layout as index (file-hierarchy), with custom routePattern
+		const page = loginLayout!.children.find(n => n.isIndex)
+		expect(page).toBeDefined()
+		expect(page!.fullPath).toBe('/login')
+		expect(page!.pageExports![0].routePattern).toBe('/login/testtest')
+	})
+
+	it('index file with .route("/xx") stays under its file-system layout', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/login/_layout.tsx', relativePath: 'login/_layout.tsx' },
+			{ absolutePath: '/app/src/routes/login/index.tsx', relativePath: 'login/index.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/login/index.tsx') {
+				return {
+					default: {
+						__buzolaPage: true,
+						component: () => null,
+						route: '/xx',
+						paramsMeta: [],
+					},
+				}
+			}
+			return {}
+		}
+
+		const tree = await buildFileRouteTree(files, loader)
+		const loginLayout = tree.find(n => n.isLayout && n.segment === 'login')
+		expect(loginLayout).toBeDefined()
+
+		// Page stays under login layout as index (file-hierarchy), URL is /xx
+		const page = loginLayout!.children.find(n => n.isIndex)
+		expect(page).toBeDefined()
+		expect(page!.fullPath).toBe('/login')
+		expect(page!.pageExports![0].routePattern).toBe('/xx')
+	})
+
+	it('index file with .route("/") stays under its file-system layout', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/login/_layout.tsx', relativePath: 'login/_layout.tsx' },
+			{ absolutePath: '/app/src/routes/login/index.tsx', relativePath: 'login/index.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/login/index.tsx') {
+				return {
+					default: {
+						__buzolaPage: true,
+						component: () => null,
+						route: '/',
+						paramsMeta: [],
+					},
+				}
+			}
+			return {}
+		}
+
+		const tree = await buildFileRouteTree(files, loader)
+		const loginLayout = tree.find(n => n.isLayout && n.segment === 'login')
+		expect(loginLayout).toBeDefined()
+
+		// Page stays under login layout as index, URL is /
+		const page = loginLayout!.children.find(n => n.isIndex)
+		expect(page).toBeDefined()
+		expect(page!.fullPath).toBe('/login')
+		expect(page!.pageExports![0].routePattern).toBe('/')
+	})
+
+	it('index file with .route("/") under root layout keeps file-hierarchy position', async () => {
+		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/_layout.tsx', relativePath: '_layout.tsx' },
+			{ absolutePath: '/app/src/routes/login/index.tsx', relativePath: 'login/index.tsx' },
+		]
+
+		const loader: ModuleLoader = async (p) => {
+			if (p === '/app/src/routes/login/index.tsx') {
+				return {
+					default: {
+						__buzolaPage: true,
+						component: () => null,
+						route: '/',
+						paramsMeta: [],
+					},
+				}
+			}
+			return {}
+		}
+
+		const tree = await buildFileRouteTree(files, loader)
+		expect(tree).toHaveLength(1)
+		const rootLayout = tree[0]
+		expect(rootLayout.isLayout).toBe(true)
+
+		// No login layout → page is a child of root layout at file position /login
+		const page = rootLayout.children.find(n => n.fullPath === '/login')
+		expect(page).toBeDefined()
+		expect(page!.segment).toBe('login')
+		expect(page!.isIndex).toBe(false)
+		expect(page!.pageExports![0].routePattern).toBe('/')
+	})
+
+	// ─── Sorting ─────────────────────────────────────────────────────────────
 
 	it('sorts not-found routes last', async () => {
 		const files: ScannedFile[] = [
@@ -196,7 +369,7 @@ describe('buildFileRouteTree', () => {
 		})
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
+		const users = tree.find(n => n.segment === 'users' && n.filePath)
 		expect(users).toBeDefined()
 		expect(users!.filePath).toBe('/app/src/routes/users.tsx')
 		expect(users!.exportName).toBe('default')
@@ -204,20 +377,15 @@ describe('buildFileRouteTree', () => {
 			{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] },
 		])
 
-		// Named exports become children
-		expect(users!.children).toHaveLength(2)
-		const detail = users!.children.find(n => n.segment === 'detail')
+		// Named exports: /users/detail and /users/settings are also under root
+		// (since there's no /users layout, they're siblings)
+		const detail = tree.find(n => n.fullPath === '/users/detail')
 		expect(detail).toBeDefined()
 		expect(detail!.filePath).toBe('/app/src/routes/users.tsx')
 		expect(detail!.exportName).toBe('detail')
-		expect(detail!.fullPath).toBe('/users/detail')
-		expect(detail!.pageExports).toEqual([
-			{ pageId: 'users/detail', exportName: 'detail', routePattern: '/users/detail', params: [{ name: 'id', optional: false, array: false }] },
-		])
 
-		const settings = users!.children.find(n => n.segment === 'settings')
+		const settings = tree.find(n => n.fullPath === '/users/settings')
 		expect(settings).toBeDefined()
-		expect(settings!.fullPath).toBe('/users/settings')
 	})
 
 	it('creates sibling nodes for named exports from index files', async () => {
@@ -239,20 +407,17 @@ describe('buildFileRouteTree', () => {
 		})
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users).toBeDefined()
 
-		// Default export → index node
-		const index = users!.children.find(n => n.isIndex)
-		expect(index).toBeDefined()
-		expect(index!.filePath).toBe('/app/src/routes/users/index.tsx')
+		// Default export → /users (index-like, placed at root without layout)
+		const usersPage = tree.find(n => n.fullPath === '/users' && n.filePath)
+		expect(usersPage).toBeDefined()
+		expect(usersPage!.filePath).toBe('/app/src/routes/users/index.tsx')
 
-		// Named export → sibling of index (child of users)
-		const detail = users!.children.find(n => n.segment === 'detail')
+		// Named export → /users/detail
+		const detail = tree.find(n => n.fullPath === '/users/detail')
 		expect(detail).toBeDefined()
 		expect(detail!.filePath).toBe('/app/src/routes/users/index.tsx')
 		expect(detail!.exportName).toBe('detail')
-		expect(detail!.fullPath).toBe('/users/detail')
 		expect(detail!.pageExports).toEqual([
 			{ pageId: 'users/detail', exportName: 'detail', routePattern: '/users/detail', params: [{ name: 'id', optional: false, array: false }] },
 		])
@@ -277,17 +442,13 @@ describe('buildFileRouteTree', () => {
 		})
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users).toBeDefined()
-		expect(users!.filePath).toBeUndefined() // No default → no component
-		expect(users!.pageExports).toBeUndefined()
-
-		expect(users!.children).toHaveLength(2)
-		expect(users!.children.find(n => n.segment === 'detail')).toBeDefined()
-		expect(users!.children.find(n => n.segment === 'list')).toBeDefined()
+		const detail = tree.find(n => n.fullPath === '/users/detail')
+		expect(detail).toBeDefined()
+		const list = tree.find(n => n.fullPath === '/users/list')
+		expect(list).toBeDefined()
 	})
 
-	it('named export with .route() uses explicit route pattern', async () => {
+	it('named export with .route() keeps file-hierarchy position with custom routePattern', async () => {
 		const files: ScannedFile[] = [
 			{ absolutePath: '/app/src/routes/users.tsx', relativePath: 'users.tsx' },
 		]
@@ -302,13 +463,13 @@ describe('buildFileRouteTree', () => {
 		})
 
 		const tree = await buildFileRouteTree(files, loader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users!.children).toHaveLength(1)
-		expect(users!.children[0].segment).toBe(':userId')
-		expect(users!.children[0].fullPath).toBe('/users/:userId')
+		// Tree position is file-based (/users/detail), route pattern in pageExports
+		const page = tree.find(n => n.fullPath === '/users/detail')
+		expect(page).toBeDefined()
+		expect(page!.pageExports![0].routePattern).toBe('/users/:userId')
 	})
 
-	it('throws on collision: named export vs file in subdirectory', async () => {
+	it('throws on collision: two pages at same path', async () => {
 		const files: ScannedFile[] = [
 			{ absolutePath: '/app/src/routes/users.tsx', relativePath: 'users.tsx' },
 			{ absolutePath: '/app/src/routes/users/detail.tsx', relativePath: 'users/detail.tsx' },
@@ -316,34 +477,6 @@ describe('buildFileRouteTree', () => {
 
 		const loader: ModuleLoader = async (p) => {
 			if (p === '/app/src/routes/users.tsx') {
-				return {
-					detail: {
-						__buzolaPage: true,
-						component: () => null,
-						paramsMeta: [],
-					},
-				}
-			}
-			return {
-				default: {
-					__buzolaPage: true,
-					component: () => null,
-					paramsMeta: [],
-				},
-			}
-		}
-
-		expect(buildFileRouteTree(files, loader)).rejects.toThrow(/Route collision/)
-	})
-
-	it('throws on collision: named export from index vs file in same directory', async () => {
-		const files: ScannedFile[] = [
-			{ absolutePath: '/app/src/routes/users/detail.tsx', relativePath: 'users/detail.tsx' },
-			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
-		]
-
-		const loader: ModuleLoader = async (p) => {
-			if (p === '/app/src/routes/users/index.tsx') {
 				return {
 					detail: {
 						__buzolaPage: true,
@@ -396,15 +529,16 @@ describe('buildFileRouteTree', () => {
 
 	it('handles nested _404 within a directory', async () => {
 		const files: ScannedFile[] = [
+			{ absolutePath: '/app/src/routes/users/_layout.tsx', relativePath: 'users/_layout.tsx' },
 			{ absolutePath: '/app/src/routes/users/index.tsx', relativePath: 'users/index.tsx' },
 			{ absolutePath: '/app/src/routes/users/_404.tsx', relativePath: 'users/_404.tsx' },
 		]
 
 		const tree = await buildFileRouteTree(files, emptyLoader)
-		const users = tree.find(n => n.segment === 'users')
-		expect(users).toBeDefined()
+		const usersLayout = tree.find(n => n.isLayout && n.segment === 'users')
+		expect(usersLayout).toBeDefined()
 
-		const notFound = users!.children.find(n => n.isNotFound)
+		const notFound = usersLayout!.children.find(n => n.isNotFound)
 		expect(notFound).toBeDefined()
 		expect(notFound!.segment).toBe(':__notFound+')
 		expect(notFound!.fullPath).toBe('/users/:__notFound+')

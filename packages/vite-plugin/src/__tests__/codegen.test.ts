@@ -95,6 +95,58 @@ describe('generateRouteModule', () => {
 		expect(output).toContain("'users/detail': '/users/detail'")
 	})
 
+	it('generates matchPath when routePattern differs from file position', () => {
+		const output = generateRouteModule({
+			tree: [{
+				segment: 'login',
+				fullPath: '/login',
+				filePath: '/tmp/routes/login/_layout.tsx',
+				isLayout: true,
+				isIndex: false,
+				isNotFound: false,
+				isPathlessGroup: false,
+				children: [{
+					segment: '',
+					fullPath: '/login',
+					filePath: '/tmp/routes/login/index.tsx',
+					exportName: 'default',
+					isLayout: false,
+					isIndex: true,
+					isNotFound: false,
+					isPathlessGroup: false,
+					pageExports: [{ pageId: 'login', exportName: 'default', routePattern: '/', params: [] }],
+					children: [],
+				}],
+			}],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+		})
+
+		expect(output).toContain("matchPath: '/'")
+		expect(output).toContain('isIndex: true')
+	})
+
+	it('does not generate matchPath when routePattern matches file position', () => {
+		const output = generateRouteModule({
+			tree: [{
+				segment: 'users',
+				fullPath: '/users',
+				filePath: '/tmp/routes/users.tsx',
+				exportName: 'default',
+				isLayout: false,
+				isIndex: false,
+				isNotFound: false,
+				isPathlessGroup: false,
+				pageExports: [{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] }],
+				children: [],
+			}],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+		})
+
+		expect(output).not.toContain('matchPath')
+	})
+
 	it('generates separate imports for default and named exports from same file', () => {
 		const output = generateRouteModule({
 			tree: [{

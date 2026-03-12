@@ -98,7 +98,9 @@ function buildRouteNodes(configs: RouteConfig[], parentPath: string): RouteNode[
 		const isIndex = config.isIndex ?? (!isLayout && (config.path === '/' || config.path === ''))
 
 		let fullPath: string
-		if (isIndex) {
+		if (config.matchPath != null) {
+			fullPath = config.matchPath
+		} else if (isIndex) {
 			fullPath = parentPath || '/'
 		} else {
 			fullPath = joinPaths(parentPath || '/', segment)

@@ -184,6 +184,11 @@ function generateTreeConfig(
 		lines.push(`${pad}{`)
 		lines.push(`${pad}  path: '${node.segment ? `/${node.segment}` : '/'}',`)
 
+		// Emit matchPath when page has a custom route pattern that differs from file-hierarchy position
+		if (node.pageExports && node.pageExports.length > 0 && node.pageExports[0].routePattern !== node.fullPath) {
+			lines.push(`${pad}  matchPath: '${node.pageExports[0].routePattern}',`)
+		}
+
 		if (imp) {
 			if (imp.isLazy) {
 				lines.push(`${pad}  component: lazy(${imp.varName}),`)
