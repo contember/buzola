@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Buzola is a type-safe SPA router for React built on the browser's Navigation API. It supports both file-based (Next.js-like) and config-based routing with full TypeScript type safety via module augmentation.
+Buzola is a type-safe SPA router for React built on the browser's Navigation API. It uses a page-centric approach where each page declares itself via `createPage()` with typed params, loaders, and error handling. Type safety is achieved through TypeScript module augmentation of `BuzolaPageMap` and `BuzolaPersistentParams`.
 
 ## Repository Structure
 
 Bun monorepo with three workspaces:
 
-- `packages/buzola` — Core routing engine (`buzola`) and React integration (`buzola/react`)
+- `packages/buzola` — Core routing engine (`@buzola/router`) and React integration (`@buzola/router/react`)
 - `packages/vite-plugin` — Vite plugin (`@buzola/vite-plugin`) for file-based route scanning and type generation
-- `playground` — Demo app using config-based routing
+- `playground` — Demo app using the framework
 
 ## Common Commands
 
@@ -44,43 +44,55 @@ cd playground && bun run dev
 
 ### Core package (`packages/buzola`)
 
-Two export paths:
+Two export paths (conditional: Bun uses source `.ts` directly, Node/browsers use compiled `.js`):
 
-- `buzola` — Engine: `Router` class, `matchRoutes`, `buildRouteTree`, `NavigationAdapter`, route config types
-- `buzola/react` — React layer: `BuzolaProvider`, `Link`, `Outlet`, hooks (`useRouter`, `useNavigate`, `useParams`, `useSearchParams`, `useRoute`, `useBlocker`)
+- `@buzola/router` — Engine: `Router` class, `matchRoutes`, `buildRouteTree`, `NavigationAdapter`, route config types, Standard Schema validation
+- `@buzola/router/react` — React layer: `BuzolaProvider`, `Link` (with `asChild`), `Outlet`, `ErrorBoundary`, hooks (`useRouter`, `useNavigate`, `useParams`, `useSearchParams`, `useRoute`, `useRouterState`, `useBlocker`, `useInvalidate`)
 
 Key engine modules in `src/engine/`:
 
 - `router.ts` — Central `Router` class managing state, navigation, subscriptions
 - `matcher.ts` — URL matching via `URLPattern` API
 - `route-tree.ts` — Builds `RouteNode` tree from flat route configs
-- `navigation-adapter.ts` — Browser Navigation API abstraction (also has memory adapter for tests)
+- `navigation-adapter.ts` — Browser Navigation API abstraction (browser + memory adapter for tests)
+- `loader-cache.ts` — Configurable LRU cache for loader data (stale-while-revalidate)
+- `schema.ts` — Standard Schema integration for param validation (compatible with Zod 4, Valibot, ArkType)
 - `types.ts` — Core type definitions (`RouteConfig`, `RouteMatch`, `RouterState`, etc.)
 
-Type safety works through TypeScript module augmentation of `BuzolaRouteMap` — generated code extends this interface so `Link`, `useNavigate`, `useParams` etc. are fully typed.
+Key React modules in `src/react/`:
+
+- `provider.tsx` — `BuzolaProvider` with global `middleware` prop for wrapping the entire route tree
+
+Page definition in `src/define/`:
+
+- `create-page.tsx` — `createPage()` API for declaring pages with params schema, loader, error handling, and type-safe `redirect(pageId, params)`
+
+### Key concepts
+
+- **File tree vs. route tree separation** — File hierarchy determines layout nesting (what components wrap what), while route patterns from `.route()` only affect URL matching. These are independent concerns.
+- **Type-safe redirects** — Loaders can redirect using `redirect(pageId, params)` with full type safety via page IDs, not string URLs.
+- **Persistent params** — Parameters that carry across navigations (configured via `persistentParams` plugin option).
+- **View Transitions** — Support for the View Transitions API via `viewTransition` option in navigation.
 
 ### Vite plugin (`packages/vite-plugin`)
 
-Two modes:
+Scans `src/routes/` (configurable via `routesDir`), generates route tree as virtual module `virtual:buzola/routes` and type augmentation in `buzola.gen.ts` (configurable via `output`). Supports named entrypoints for multi-SPA configs via `name` option.
 
-1. **File-based** (default) — Scans `src/routes/`, generates route tree as virtual module `virtual:buzola/routes`
-2. **Config-based** (`routeConfigFile` option) — Parses explicit route config, only generates type augmentation
-
-File conventions: `_layout.tsx`, `_404.tsx`, `index.tsx`, `[param].tsx`, `[...slug].tsx`, `(group)/` — files prefixed with `_` are special convention files
+File conventions: `_layout.tsx`, `_404.tsx`, `index.tsx`, `[param].tsx`, `[...slug].tsx`, `(group)/` — files prefixed with `_` are special convention files. Pages use `createPage()` to declare their params, loader, and component. `.route()` can override the URL pattern without affecting file-tree nesting.
 
 Key modules in `src/`:
 
 - `plugin.ts` — Vite plugin entry
 - `conventions.ts` — File naming convention parser
 - `generator/scanner.ts` — FS scanning
-- `generator/tree-builder.ts` — Builds `FileRouteNode` tree
+- `generator/tree-builder.ts` — Builds `FileRouteNode` tree (two-phase: file hierarchy for nesting, route patterns for matching)
+- `generator/page-extractor.ts` — Extracts `createPage()` metadata from modules
 - `generator/codegen.ts` — Code generation for `buzola.gen.ts` and type augmentation
-- `generator/config-parser.ts` — Extracts routes from config-based definitions
 
 ## Code Style
 
 - **Formatter:** dprint — tabs, ASI (no semicolons), single quotes, double quotes in JSX, 150 char line width
 - **Linter:** Biome — recommended rules with a11y off, several complexity/correctness rules relaxed
 - **Tests:** `bun:test` (imports from `bun:test`, not vitest)
-- **TypeScript:** Strict mode, `verbatimModuleSyntax`, composite builds with project references
+- **TypeScript:** Strict mode, `verbatimModuleSyntax`, `NodeNext` module resolution with explicit `.js` extensions, composite builds with project references
 - **Section markers:** Code uses `// ─── Section Name ─────` comment dividers
