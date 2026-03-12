@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { createBrowserNavigationAdapter } from '../engine/navigation-adapter.js'
 import { Router } from '../engine/router.js'
 import type { RouteMatch, RouteNode } from '../engine/types.js'
@@ -54,7 +54,7 @@ export function BuzolaProvider({ routes, children, middleware: Middleware, ...pr
 	const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
 	// Start navigation interception
-	useEffect(() => {
+	useLayoutEffect(() => {
 		return router.start()
 	}, [router])
 
