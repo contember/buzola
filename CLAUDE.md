@@ -89,6 +89,20 @@ Key modules in `src/`:
 - `generator/page-extractor.ts` — Extracts `createPage()` metadata from modules
 - `generator/codegen.ts` — Code generation for `buzola.gen.ts` and type augmentation
 
+## Release Process
+
+Both packages (`@buzola/router` and `@buzola/vite-plugin`) are always released together with the same version number.
+
+To release a new version:
+
+```bash
+git tag "@buzola/router@<version>"
+git tag "@buzola/vite-plugin@<version>"
+git push origin "@buzola/router@<version>" "@buzola/vite-plugin@<version>"
+```
+
+The CI workflow (`.github/workflows/release.yml`) handles the rest — it runs lint, format check, typecheck, and tests, then publishes to npm with provenance. The version in `package.json` files is a placeholder; the actual version is taken from the git tag.
+
 ## Code Style
 
 - **Formatter:** dprint — tabs, ASI (no semicolons), single quotes, double quotes in JSX, 150 char line width
