@@ -158,10 +158,11 @@ export class Router {
 						}
 					}
 
-					// Set pending state
+					// Set pending state with target location
 					this.setState({
 						...this.state,
 						isPending: true,
+						pendingLocation: url,
 					})
 
 					// A newer navigation has started — abandon this one
@@ -173,6 +174,7 @@ export class Router {
 							location: url,
 							matches,
 							isPending: false,
+							pendingLocation: undefined,
 							navigationState: this.adapter.getState(),
 						})
 					}

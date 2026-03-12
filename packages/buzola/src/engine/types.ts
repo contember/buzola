@@ -127,6 +127,8 @@ export interface RouterState {
 	matches: RouteMatch[]
 	/** Whether a navigation is in progress. */
 	isPending: boolean
+	/** The target URL during a pending navigation. Undefined when not navigating. */
+	pendingLocation?: URL
 	/** Navigation state from Navigation API. */
 	navigationState?: unknown
 }

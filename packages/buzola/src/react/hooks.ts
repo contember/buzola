@@ -115,9 +115,13 @@ export function useRoute() {
 		depth,
 		/** Whether a navigation is pending. */
 		isPending: state.isPending,
+		/** The target URL during a pending navigation (with base path stripped). Undefined when not navigating. */
+		pendingLocation: state.pendingLocation
+			? router.stripBasePath(state.pendingLocation.pathname)
+			: undefined,
 		/** Current pathname (with base path stripped). */
 		pathname: router.stripBasePath(state.location.pathname),
-	}), [params, matches, depth, state.isPending, state.location.pathname, router])
+	}), [params, matches, depth, state.isPending, state.pendingLocation, state.location.pathname, router])
 }
 
 /**
