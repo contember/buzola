@@ -121,13 +121,16 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 			if (!file.startsWith(routesDir) || !server) return
 
 			const changed = await generate((p) => server!.ssrLoadModule(p))
+			if (!changed) return
 
-			if (changed) {
-				const mod = server.moduleGraph.getModuleById(resolvedVirtualId)
-				if (mod) {
-					server.moduleGraph.invalidateModule(mod)
-				}
-				server.ws.send({ type: 'full-reload' })
+			// Invalidate the virtual module so Vite re-evaluates it.
+			// Vite propagates the update through the import chain — if the app
+			// supports HMR for the route tree, no full-page reload is needed.
+			// If not, Vite falls back to full-reload automatically.
+			const mod = server.moduleGraph.getModuleById(resolvedVirtualId)
+			if (mod) {
+				server.moduleGraph.invalidateModule(mod)
+				return [mod]
 			}
 		},
 	}
