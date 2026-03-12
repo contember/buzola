@@ -212,3 +212,61 @@ describe('Router.resolveParams', () => {
 		expect(result).toEqual({})
 	})
 })
+
+describe('Router.preload', () => {
+	it('calls preload on matching route nodes', () => {
+		const preloadFn = mock(() => {})
+		const routes = buildRouteTree([
+			{ path: '/', component: dummyComponent, isIndex: true },
+			{ path: '/users/:userId', component: dummyComponent, preload: preloadFn },
+		])
+		const adapter = createMemoryNavigationAdapter({ initialURL: 'http://localhost/' })
+		const router = new Router({
+			routes,
+			adapter,
+			pageRegistry: { 'users/detail': '/users/:userId' },
+		})
+
+		router.preload('users/detail', { userId: '42' })
+		expect(preloadFn).toHaveBeenCalledTimes(1)
+	})
+
+	it('calls preload on all matched nodes (layout + page)', () => {
+		const layoutPreload = mock(() => {})
+		const pagePreload = mock(() => {})
+		const routes = buildRouteTree([{
+			path: '/users',
+			component: dummyComponent,
+			preload: layoutPreload,
+			isLayout: true,
+			children: [
+				{ path: '/:userId', component: dummyComponent, preload: pagePreload },
+			],
+		}])
+		const adapter = createMemoryNavigationAdapter({ initialURL: 'http://localhost/' })
+		const router = new Router({
+			routes,
+			adapter,
+			pageRegistry: { 'users/detail': '/users/:userId' },
+		})
+
+		router.preload('users/detail', { userId: '1' })
+		expect(layoutPreload).toHaveBeenCalledTimes(1)
+		expect(pagePreload).toHaveBeenCalledTimes(1)
+	})
+
+	it('does not throw for unmatched page', () => {
+		const routes = buildRouteTree([
+			{ path: '/', component: dummyComponent, isIndex: true },
+		])
+		const adapter = createMemoryNavigationAdapter({ initialURL: 'http://localhost/' })
+		const router = new Router({
+			routes,
+			adapter,
+			pageRegistry: { 'about': '/about' },
+		})
+
+		// Should not throw
+		router.preload('about')
+	})
+})

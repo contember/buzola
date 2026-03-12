@@ -63,6 +63,8 @@ export interface RouteConfig {
 	component?: RouteComponent
 	/** Schema for validating search params (Standard Schema compatible). */
 	searchSchema?: StandardSchema
+	/** Preload function — triggers lazy component import ahead of navigation. */
+	preload?: () => void
 	/** Child routes. */
 	children?: RouteConfig[]
 	/** Whether this is a layout route (has outlet but no own path segment). */
@@ -103,6 +105,8 @@ export interface RouteNode {
 	component?: RouteComponent
 	/** Search params schema. */
 	searchSchema?: StandardSchema
+	/** Preload function — triggers lazy component import ahead of navigation. */
+	preload?: () => void
 	/** Child nodes. */
 	children: RouteNode[]
 	/** Parent node reference. */

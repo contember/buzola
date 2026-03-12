@@ -230,6 +230,22 @@ export class Router {
 	}
 
 	/**
+	 * Preload a page by its page ID.
+	 * Triggers lazy component imports for all matching route nodes,
+	 * so the code is ready when the user navigates.
+	 */
+	preload(pageId: string, params?: Record<string, string>): void {
+		const path = this.buildPagePath(pageId, params)
+		const url = new URL(path, 'http://localhost')
+		const matchUrl = this.createMatchUrl(url)
+		const matches = matchRoutes(this.routes, matchUrl)
+		if (!matches) return
+		for (const match of matches) {
+			match.node.preload?.()
+		}
+	}
+
+	/**
 	 * Go back in history.
 	 */
 	back(): void {

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import type { EffectivePageParams, NavigateOptions, RegisteredPage } from '../engine/types.js'
 import { useRouter, useRouterState } from './hooks.js'
 
@@ -27,6 +27,13 @@ type LinkPropsBase = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>
 	 * When `true`, clones the single child element and merges `href`, `onClick`, and `data-active` props into it.
 	 */
 	asChild?: boolean
+	/**
+	 * Prefetch strategy for lazy-loaded route code.
+	 * - `'intent'` — preload on mouseEnter/focus (default)
+	 * - `'render'` — preload as soon as the Link renders
+	 * - `'none'` — disable prefetching
+	 */
+	prefetch?: 'intent' | 'render' | 'none'
 }
 
 export type LinkProps<P extends RegisteredPage = RegisteredPage> = [keyof EffectivePageParams<P>] extends [never]
@@ -53,13 +60,17 @@ export function Link<P extends RegisteredPage>(props: LinkProps<P>): React.React
 		resetScroll,
 		activeExact = true,
 		asChild,
+		prefetch = 'intent',
 		onClick,
+		onMouseEnter,
+		onFocus,
 		children,
 		...rest
 	} = props as LinkPropsBase & { to: string; params?: Record<string, string> }
 
 	const router = useRouter()
 	const routerState = useRouterState()
+	const preloadedRef = useRef(false)
 
 	const href = router.buildPagePath(to, params)
 	const needsProgrammaticNav = state !== undefined || replace || viewTransition || resetScroll === false
@@ -70,6 +81,33 @@ export function Link<P extends RegisteredPage>(props: LinkProps<P>): React.React
 	const isExact = currentPath === targetPath
 	const isPrefix = targetPath !== '/' && currentPath.startsWith(targetPath + '/')
 	const isActive = isExact || (!activeExact && isPrefix)
+
+	const doPreload = useCallback(() => {
+		if (preloadedRef.current) return
+		preloadedRef.current = true
+		router.preload(to, params)
+	}, [router, to, params])
+
+	// Prefetch on render
+	useEffect(() => {
+		if (prefetch === 'render') doPreload()
+	}, [prefetch, doPreload])
+
+	const handleMouseEnter = useCallback(
+		(e: React.MouseEvent<HTMLAnchorElement>) => {
+			onMouseEnter?.(e)
+			if (prefetch === 'intent') doPreload()
+		},
+		[onMouseEnter, prefetch, doPreload],
+	)
+
+	const handleFocus = useCallback(
+		(e: React.FocusEvent<HTMLAnchorElement>) => {
+			onFocus?.(e)
+			if (prefetch === 'intent') doPreload()
+		},
+		[onFocus, prefetch, doPreload],
+	)
 
 	const handleClick = useCallback(
 		(e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -91,18 +129,24 @@ export function Link<P extends RegisteredPage>(props: LinkProps<P>): React.React
 		[onClick, needsProgrammaticNav, router, to, params, replace, state, viewTransition, resetScroll],
 	)
 
+	const commonProps = {
+		href,
+		onClick: handleClick,
+		onMouseEnter: handleMouseEnter,
+		onFocus: handleFocus,
+		'data-active': isActive ? '' : undefined,
+	}
+
 	if (asChild) {
 		const child = React.Children.only(children) as React.ReactElement<any>
 		return React.cloneElement(child, {
-			href,
-			onClick: handleClick,
-			'data-active': isActive ? '' : undefined,
+			...commonProps,
 			...rest,
 		})
 	}
 
 	return (
-		<a href={href} onClick={handleClick} data-active={isActive ? '' : undefined} {...rest}>
+		<a {...commonProps} {...rest}>
 			{children}
 		</a>
 	)

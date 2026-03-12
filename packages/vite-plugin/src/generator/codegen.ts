@@ -192,6 +192,7 @@ function generateTreeConfig(
 		if (imp) {
 			if (imp.isLazy) {
 				lines.push(`${pad}  component: lazy(${imp.varName}),`)
+				lines.push(`${pad}  preload: ${imp.varName},`)
 			} else {
 				lines.push(`${pad}  component: ${imp.varName},`)
 			}

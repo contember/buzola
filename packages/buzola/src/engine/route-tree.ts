@@ -24,6 +24,7 @@ export interface CreateRouteNodeOptions {
 	fullPath: string
 	component?: RouteComponent
 	searchSchema?: StandardSchema
+	preload?: () => void
 	children?: RouteNode[]
 	parent?: RouteNode
 	isLayout?: boolean
@@ -39,6 +40,7 @@ export function createRouteNode(options: CreateRouteNodeOptions): RouteNode {
 		fullPath,
 		component,
 		searchSchema,
+		preload,
 		children = [],
 		parent,
 		isLayout = false,
@@ -68,6 +70,7 @@ export function createRouteNode(options: CreateRouteNodeOptions): RouteNode {
 		prefixPattern,
 		component,
 		searchSchema,
+		preload,
 		children,
 		parent,
 		isLayout,
@@ -116,6 +119,7 @@ function buildRouteNodes(configs: RouteConfig[], parentPath: string): RouteNode[
 			fullPath,
 			component: config.component,
 			searchSchema: config.searchSchema,
+			preload: config.preload,
 			children,
 			isLayout,
 			isIndex,
