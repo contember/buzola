@@ -107,7 +107,6 @@ describe('Router', () => {
 		expect(router.buildPath('/')).toBe('/')
 	})
 
-
 	it('generates deterministic path-based IDs', () => {
 		const routes = buildRouteTree([
 			{

@@ -529,7 +529,11 @@ describe('Outlet', () => {
 		]
 
 		const { router } = createTestRouter(configs, 'http://localhost/missing')
-		const { container } = render(<BuzolaProvider router={router}><Outlet notFound={<div>Custom 404</div>} /></BuzolaProvider>)
+		const { container } = render(
+			<BuzolaProvider router={router}>
+				<Outlet notFound={<div>Custom 404</div>} />
+			</BuzolaProvider>,
+		)
 		expect(container.textContent).toBe('Custom 404')
 	})
 
@@ -539,7 +543,11 @@ describe('Outlet', () => {
 		]
 
 		const { router } = createTestRouter(configs, 'http://localhost/missing')
-		const { container } = render(<BuzolaProvider router={router}><Outlet notFound={null} /></BuzolaProvider>)
+		const { container } = render(
+			<BuzolaProvider router={router}>
+				<Outlet notFound={null} />
+			</BuzolaProvider>,
+		)
 		expect(container.textContent).toBe('')
 	})
 

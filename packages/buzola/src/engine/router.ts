@@ -3,7 +3,6 @@ import { matchRoutes } from './matcher.js'
 import type { BlockerFn, NavigateOptions, NavigationAdapter, RouteNode, RouterState } from './types.js'
 import { extractParamNames, parseParamSegment } from './utils.js'
 
-
 /**
  * Thrown when a route guard prevents navigation.
  */

@@ -5,21 +5,25 @@ import { ErrorBoundary } from './error-boundary.js'
 const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
 
 function DefaultNotFound(): React.ReactElement {
-	return React.createElement('div', {
-		style: { fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '600px', margin: '0 auto' },
-	}, isDev
-		? [
-			React.createElement('h1', { key: 'h' }, '404 — Page Not Found'),
-			React.createElement('p', { key: 'p1' }, `No route matches "${typeof window !== 'undefined' ? window.location.pathname : ''}".`),
-			React.createElement('p', {
-				key: 'p2',
-				style: { color: '#666', fontSize: '0.9rem' },
-			}, 'To handle this, add a _404.tsx catch-all route or pass a notFound prop to <Outlet />.'),
-		]
-		: [
-			React.createElement('h1', { key: 'h' }, '404'),
-			React.createElement('p', { key: 'p' }, 'Page not found.'),
-		])
+	return React.createElement(
+		'div',
+		{
+			style: { fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '600px', margin: '0 auto' },
+		},
+		isDev
+			? [
+				React.createElement('h1', { key: 'h' }, '404 — Page Not Found'),
+				React.createElement('p', { key: 'p1' }, `No route matches "${typeof window !== 'undefined' ? window.location.pathname : ''}".`),
+				React.createElement('p', {
+					key: 'p2',
+					style: { color: '#666', fontSize: '0.9rem' },
+				}, 'To handle this, add a _404.tsx catch-all route or pass a notFound prop to <Outlet />.'),
+			]
+			: [
+				React.createElement('h1', { key: 'h' }, '404'),
+				React.createElement('p', { key: 'p' }, 'Page not found.'),
+			],
+	)
 }
 
 export interface OutletProps {

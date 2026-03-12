@@ -9,7 +9,17 @@ export type { LinkProps } from './link.js'
 
 export { ErrorBoundary } from './error-boundary.js'
 
-export { useBlocker, useInvalidate, useNavigate, useNavigationState, useParams, useRoute, useRouter, useRouterState, useSearchParams } from './hooks.js'
+export {
+	useBlocker,
+	useInvalidate,
+	useNavigate,
+	useNavigationState,
+	useParams,
+	useRoute,
+	useRouter,
+	useRouterState,
+	useSearchParams,
+} from './hooks.js'
 export type { BlockerState } from './hooks.js'
 
 export { RouteContext, RouterContext } from './context.js'
