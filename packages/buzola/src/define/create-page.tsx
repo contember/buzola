@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import { type ComponentType, use, useCallback, useEffect, useMemo, useReducer, useState } from 'react'
-import type { LoaderCache } from '../engine/loader-cache.js'
+import { PageLoaderState } from '../engine/loader-state.js'
 import { isOptionalSchema, type ParamLiteral, resolveParamLiteral, validateSchema } from '../engine/schema.js'
 import type { EffectivePageParams, RegisteredPage, RouteComponent, StandardSchema } from '../engine/types.js'
 import { extractParamNames } from '../engine/utils.js'
@@ -153,8 +153,6 @@ function combineLoaders(loaders: LoaderFn[]): LoaderFn | undefined {
 
 // ─── Component factory ──────────────────────────────────────────────────────
 
-let nextPageId = 0
-
 function createPageComponent<TParams>(
 	schema: StandardSchema<TParams> | undefined,
 	paramsMeta: ParamMeta[],
@@ -165,38 +163,10 @@ function createPageComponent<TParams>(
 ): PageDefinition<TParams> {
 	const arrayParams = new Set(paramsMeta.filter(m => m.array).map(m => m.name))
 
-	// Loader promise cache lives in the closure, outside React's render cycle.
-	// This is critical: when use() suspends during the initial render, React
-	// discards all uncommitted hook state (useRef, useState, useMemo).
-	// On retry, hooks reinitialize, and useMemo/useRef would create a new promise,
-	// causing an infinite suspend loop. The closure cache survives this.
-
-	// Active load state (current URL)
-	let activeUrlHref: string | null = null
-	let activeCacheKey: string | null = null
-	let activePromise: Promise<unknown> | null = null
-	let activeResolvedData: unknown
-	let hasResolved = false
-	let pendingBackgroundKey: string | null = null
-
-	// Unique ID for namespacing entries in the global loader cache
-	const pageId = nextPageId++
-
-	function staleCacheKey(urlHref: string): string {
-		return `${pageId}:${urlHref}`
-	}
-
-	function staleCacheGet(cache: LoaderCache, urlHref: string): { hit: true; value: unknown } | { hit: false } {
-		const key = staleCacheKey(urlHref)
-		if (!cache.has(key)) return { hit: false }
-		const value = cache.get(key)
-		cache.delete(key)
-		return { hit: true, value }
-	}
-
-	function staleCacheSet(cache: LoaderCache, urlHref: string, value: unknown): void {
-		cache.set(staleCacheKey(urlHref), value)
-	}
+	// Loader state lives in the closure, outside React's render cycle.
+	// This is critical: when use() suspends, React discards uncommitted hook
+	// state. The PageLoaderState instance survives Suspense retries.
+	const loaderState = loaderFn ? new PageLoaderState() : undefined
 
 	function BuzolaPage(): ReactElement | null {
 		const routeContext = use(RouteContext)
@@ -259,120 +229,51 @@ function createPageComponent<TParams>(
 			return router.onInvalidate(() => setLoaderKey(k => k + 1))
 		}, [router])
 
-		const loaderCache = router?.loaderCache
-
 		let data: unknown
 		let isLoading = false
 		let shouldRedirect = false
 
-		if (loaderFn) {
+		if (loaderFn && loaderState) {
 			const currentUrlHref = routeContext.state.location.href
 			const cacheKey = `${currentUrlHref}:${loaderKey}`
 
-			// URL changed — save old data to stale cache, restore from stale cache if available
-			if (activeUrlHref !== null && activeUrlHref !== currentUrlHref) {
-				if (loaderCache && hasResolved && activeResolvedData !== undefined) {
-					staleCacheSet(loaderCache, activeUrlHref, activeResolvedData)
-				}
-
-				const cached = loaderCache && staleCacheGet(loaderCache, currentUrlHref)
-				if (cached?.hit) {
-					activeResolvedData = cached.value
-					hasResolved = true
-				} else {
-					hasResolved = false
-					activeResolvedData = undefined
-				}
-				pendingBackgroundKey = null
-			} else if (activeUrlHref === null && loaderCache) {
-				// Remount — restore from stale cache
-				const cached = staleCacheGet(loaderCache, currentUrlHref)
-				if (cached.hit) {
-					activeResolvedData = cached.value
-					hasResolved = true
-				}
-			}
-			activeUrlHref = currentUrlHref
-
-			if (activeCacheKey === cacheKey) {
-				// Cache hit — check if background load is pending
-				if (pendingBackgroundKey === cacheKey) {
-					data = activeResolvedData
-					isLoading = true
-				} else {
-					// Either resolved or first-time suspend
-					if (hasResolved) {
-						data = activeResolvedData
+			const instruction = loaderState.resolve({
+				currentUrlHref,
+				cacheKey,
+				load: () => loaderFn({ params, redirect }),
+				loaderCache: router?.loaderCache,
+				onBackgroundSettled: (outcome) => {
+					if (outcome.ok) {
+						if (outcome.result instanceof BuzolaRedirect) {
+							router?.navigateToPage(outcome.result.pageId, outcome.result.params, { replace: true })
+							return
+						}
+						loaderState.commitBackgroundResult(outcome.result)
 					} else {
-						data = use(activePromise!)
-						activeResolvedData = data
-						hasResolved = true
+						loaderState.commitBackgroundError()
 					}
-				}
-			} else if (hasResolved) {
-				// Cache key changed + we have stale data → background reload (SWR)
-				const promise = loaderFn({ params, redirect })
-				activeCacheKey = cacheKey
-				activePromise = promise
-				pendingBackgroundKey = cacheKey
-				data = activeResolvedData
-				isLoading = true
+					forceUpdate()
+				},
+			})
 
-				promise.then(
-					(result) => {
-						// Only apply if this is still the active load
-						if (activeCacheKey === cacheKey) {
-							if (result instanceof BuzolaRedirect) {
-								router?.navigateToPage(result.pageId, result.params, { replace: true })
-								return
-							}
-							activeResolvedData = result
-							pendingBackgroundKey = null
-							forceUpdate()
-						}
-					},
-					(error) => {
-						// Store rejected promise so use() triggers ErrorBoundary
-						if (activeCacheKey === cacheKey) {
-							activePromise = promise
-							hasResolved = false
-							pendingBackgroundKey = null
-							forceUpdate()
-						}
-					},
-				)
+			if (instruction.action === 'render') {
+				data = instruction.data
+				isLoading = instruction.isLoading
 			} else {
-				// No stale data — first load, suspend via use()
-				const promise = loaderFn({ params, redirect })
-				activeCacheKey = cacheKey
-				activePromise = promise
-				const result = use(promise)
+				const result = use(instruction.promise)
 				if (result instanceof BuzolaRedirect) {
 					router?.navigateToPage(result.pageId, result.params, { replace: true })
 					shouldRedirect = true
 				} else {
 					data = result
-				}
-				if (!shouldRedirect) {
-					activeResolvedData = data
-					hasResolved = true
+					loaderState.commitResult(data)
 				}
 			}
 		}
 
-		// On unmount, save active data to stale cache and reset active state
+		// On unmount, save active data to stale cache and reset
 		useEffect(() => {
-			return () => {
-				if (loaderCache && hasResolved && activeResolvedData !== undefined && activeUrlHref) {
-					staleCacheSet(loaderCache, activeUrlHref, activeResolvedData)
-				}
-				hasResolved = false
-				activeResolvedData = undefined
-				activeCacheKey = null
-				activePromise = null
-				pendingBackgroundKey = null
-				activeUrlHref = null
-			}
+			return () => loaderState?.dispose(router?.loaderCache)
 		}, [])
 
 		if (shouldRedirect) return null
