@@ -1,5 +1,5 @@
 export { BuzolaProvider } from './provider'
-export type { BuzolaProviderProps } from './provider'
+export type { BuzolaProviderProps, MiddlewareComponent, MiddlewareProps } from './provider'
 
 export { Outlet } from './outlet'
 export type { OutletProps } from './outlet'

@@ -129,6 +129,89 @@ describe('BuzolaProvider', () => {
 		const { getByText } = render(<BuzolaProvider router={router} />)
 		expect(getByText('Home')).toBeTruthy()
 	})
+
+	it('wraps content with middleware', () => {
+		function Middleware({ children }: { params: Record<string, string>; children: React.ReactNode }) {
+			return <div data-testid="middleware">{children}</div>
+		}
+		const { router } = createTestRouter(
+			[{ path: '/', component: Home, isIndex: true }],
+		)
+		const { getByTestId, getByText } = render(
+			<BuzolaProvider router={router} middleware={Middleware} />,
+		)
+		expect(getByTestId('middleware')).toBeTruthy()
+		expect(getByText('Home')).toBeTruthy()
+	})
+
+	it('passes merged params from all matches to middleware', () => {
+		function UserPage() {
+			return <div>User Page</div>
+		}
+		function Layout() {
+			return <Outlet />
+		}
+		function Middleware({ params, children }: { params: Record<string, string>; children: React.ReactNode }) {
+			return <div data-testid="params">{JSON.stringify(params)}{children}</div>
+		}
+		const { router } = createTestRouter(
+			[{
+				path: '/org/:orgId',
+				component: Layout,
+				isLayout: true,
+				children: [{ path: '/user/:userId', component: UserPage }],
+			}],
+			'http://localhost/org/abc/user/123',
+		)
+		const { getByTestId } = render(
+			<BuzolaProvider router={router} middleware={Middleware} />,
+		)
+		const paramsText = getByTestId('params').textContent!
+		expect(paramsText).toContain('"orgId":"abc"')
+		expect(paramsText).toContain('"userId":"123"')
+	})
+
+	it('passes matches array to middleware', () => {
+		function Middleware({ matches, children }: { matches: unknown[]; children: React.ReactNode }) {
+			return <div data-testid="count">{matches.length}{children}</div>
+		}
+		const { router } = createTestRouter(
+			[{
+				path: '/a',
+				component: () => <Outlet />,
+				isLayout: true,
+				children: [{ path: '/b', component: () => <div>B</div> }],
+			}],
+			'http://localhost/a/b',
+		)
+		const { getByTestId } = render(
+			<BuzolaProvider router={router} middleware={Middleware} />,
+		)
+		expect(getByTestId('count').textContent).toStartWith('2')
+	})
+
+	it('updates middleware params on navigation', async () => {
+		function Page() {
+			return <div>Page</div>
+		}
+		function Middleware({ params, children }: { params: Record<string, string>; children: React.ReactNode }) {
+			return <div data-testid="mid-params">{params.id}{children}</div>
+		}
+		const { router } = createTestRouter(
+			[
+				{ path: '/:id', component: Page },
+			],
+			'http://localhost/first',
+		)
+		const { getByTestId } = render(
+			<BuzolaProvider router={router} middleware={Middleware} />,
+		)
+		expect(getByTestId('mid-params').textContent).toStartWith('first')
+
+		router.navigate('/second')
+		await flushNav()
+		expect(getByTestId('mid-params').textContent).toStartWith('second')
+	})
 })
 
 // ─── useRouter ───────────────────────────────────────────────────────────────
