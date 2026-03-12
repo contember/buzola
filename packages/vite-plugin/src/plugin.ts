@@ -7,6 +7,15 @@ import { scanRouteFiles } from './generator/scanner'
 import { buildFileRouteTree } from './generator/tree-builder'
 
 export interface BuzolaPluginOptions {
+	/**
+	 * Unique name for this plugin instance. Required when registering multiple
+	 * entrypoints in the same Vite config. Affects the plugin name
+	 * (`buzola:${name}`) and the virtual module ID (`virtual:buzola/${name}/routes`).
+	 *
+	 * When omitted, the plugin uses `buzola` as its name and
+	 * `virtual:buzola/routes` as the virtual module ID.
+	 */
+	name?: string
 	/** Path to routes directory, relative to project root. Defaults to "src/routes". */
 	routesDir?: string
 	/** Path to output generated file, relative to project root. Defaults to "src/buzola.gen.ts". */
@@ -18,9 +27,6 @@ export interface BuzolaPluginOptions {
 	 */
 	persistentParams?: string[]
 }
-
-const VIRTUAL_MODULE_ID = 'virtual:buzola/routes'
-const RESOLVED_VIRTUAL_ID = '\0' + VIRTUAL_MODULE_ID
 
 /**
  * Vite plugin for Buzola page-centric routing.
@@ -35,10 +41,15 @@ const RESOLVED_VIRTUAL_ID = '\0' + VIRTUAL_MODULE_ID
  */
 export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 	const {
+		name: nameOption,
 		routesDir: routesDirOption = 'src/routes',
 		output: outputOption = 'src/buzola.gen.ts',
 		persistentParams: persistentParamsOption,
 	} = options
+
+	const pluginName = nameOption ? `buzola:${nameOption}` : 'buzola'
+	const virtualModuleId = nameOption ? `virtual:buzola/${nameOption}/routes` : 'virtual:buzola/routes'
+	const resolvedVirtualId = '\0' + virtualModuleId
 
 	let root: string
 	let routesDir: string
@@ -59,7 +70,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 	}
 
 	return {
-		name: 'buzola',
+		name: pluginName,
 		enforce: 'pre',
 
 		configResolved(config) {
@@ -95,13 +106,13 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		resolveId(id) {
-			if (id === VIRTUAL_MODULE_ID) {
-				return RESOLVED_VIRTUAL_ID
+			if (id === virtualModuleId) {
+				return resolvedVirtualId
 			}
 		},
 
 		load(id) {
-			if (id === RESOLVED_VIRTUAL_ID) {
+			if (id === resolvedVirtualId) {
 				return `export { routes, pageRegistry } from '${outputPath.replace(/\.ts$/, '')}';\n`
 			}
 		},
@@ -112,7 +123,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 			const changed = await generate((p) => server!.ssrLoadModule(p))
 
 			if (changed) {
-				const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)
+				const mod = server.moduleGraph.getModuleById(resolvedVirtualId)
 				if (mod) {
 					server.moduleGraph.invalidateModule(mod)
 				}
