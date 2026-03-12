@@ -79,7 +79,12 @@ export class Router {
 
 		// Initialize state from current URL
 		const url = this.adapter.getCurrentURL()
-		const matches = matchRoutes(this.routes, this.createMatchUrl(url)) ?? []
+		const matchUrl = this.createMatchUrl(url)
+		const matches = matchRoutes(this.routes, matchUrl) ?? []
+
+		if (matches.length === 0) {
+			console.warn(`[buzola] No route matched URL "${url.pathname}". Define a catch-all 404 route to handle unmatched URLs.`)
+		}
 
 		this.state = {
 			location: url,
@@ -132,7 +137,10 @@ export class Router {
 			const url = new URL(event.destination.url)
 			const matchUrl = this.createMatchUrl(url)
 			const matches = matchRoutes(this.routes, matchUrl)
-			if (!matches) return
+			if (!matches) {
+				console.warn(`[buzola] No route matched URL "${url.pathname}". The navigation was not intercepted.`)
+				return
+			}
 
 			const currentNavId = ++this.navigationId
 			const useViewTransition = event.viewTransition || this.viewTransitions

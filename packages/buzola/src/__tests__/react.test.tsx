@@ -513,14 +513,33 @@ describe('Outlet', () => {
 		expect(getByText('Home')).toBeTruthy()
 	})
 
-	it('returns null when no match', () => {
+	it('shows default 404 when no match', () => {
 		const configs: RouteConfig[] = [
 			{ path: '/about', component: About },
 		]
 
 		const { router } = createTestRouter(configs, 'http://localhost/missing')
 		const { container } = render(<BuzolaProvider router={router} />)
-		// The outlet renders null for no match, but BuzolaProvider still renders
+		expect(container.textContent).toContain('404')
+	})
+
+	it('shows custom notFound when no match', () => {
+		const configs: RouteConfig[] = [
+			{ path: '/about', component: About },
+		]
+
+		const { router } = createTestRouter(configs, 'http://localhost/missing')
+		const { container } = render(<BuzolaProvider router={router}><Outlet notFound={<div>Custom 404</div>} /></BuzolaProvider>)
+		expect(container.textContent).toBe('Custom 404')
+	})
+
+	it('renders nothing when notFound is null', () => {
+		const configs: RouteConfig[] = [
+			{ path: '/about', component: About },
+		]
+
+		const { router } = createTestRouter(configs, 'http://localhost/missing')
+		const { container } = render(<BuzolaProvider router={router}><Outlet notFound={null} /></BuzolaProvider>)
 		expect(container.textContent).toBe('')
 	})
 
