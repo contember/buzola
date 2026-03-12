@@ -108,6 +108,30 @@ describe('createPage catch type safety', () => {
 		withCatch.loader
 		expect(true).toBe(true)
 	})
+
+	it('.catch() handler receives typed params', () => {
+		const _page = createPage()
+			.params(mockSchema<{ userId: string; tab: string }>())
+			.catch(({ error, params, retry }) => {
+				// params should be typed as { userId: string; tab: string }
+				const _userId: string = params.userId
+				const _tab: string = params.tab
+				return <div>{error.message}</div>
+			})
+			.render(() => null)
+		expect(true).toBe(true)
+	})
+
+	it('.catch() handler has empty params when no schema defined', () => {
+		const _page = createPage()
+			.catch(({ params }) => {
+				// @ts-expect-error — no params defined, accessing unknown key
+				params.anything
+				return null
+			})
+			.render(() => null)
+		expect(true).toBe(true)
+	})
 })
 
 // ─── LinkProps ──────────────────────────────────────────────────────────────

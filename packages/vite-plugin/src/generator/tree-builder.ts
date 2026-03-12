@@ -401,7 +401,13 @@ async function safeExtractPages(file: ScannedFile, moduleLoader: ModuleLoader): 
 	try {
 		return await extractPages(file.absolutePath, moduleLoader)
 	} catch (error) {
-		console.warn(`[buzola] Failed to extract pages from ${file.relativePath}:`, error instanceof Error ? error.message : error)
+		const message = error instanceof Error ? error.message : String(error)
+		const stack = error instanceof Error && error.stack ? `\n${error.stack}` : ''
+		console.warn(
+			`[buzola] Failed to extract page metadata from "${file.relativePath}". `
+				+ `The file will be treated as a plain component (no typed params, no loader, no custom route). `
+				+ `Cause: ${message}${stack}`,
+		)
 		return []
 	}
 }
