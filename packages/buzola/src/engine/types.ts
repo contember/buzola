@@ -50,20 +50,6 @@ export interface StandardSchema<T = unknown> {
 	}
 }
 
-/** Result returned by a route guard to redirect navigation. */
-export interface GuardRedirect {
-	redirect: string
-}
-
-/** Context passed to route guards. */
-export interface GuardContext {
-	signal: AbortSignal
-}
-
-/** Guard function — return false to block, a GuardRedirect to redirect, or true/void to allow. */
-export type RouteGuardResult = boolean | void | GuardRedirect
-export type RouteGuard = (match: RouteMatch, context: GuardContext) => RouteGuardResult | Promise<RouteGuardResult>
-
 /** Route component — either a regular component or a lazy-loaded one. */
 export type RouteComponent = ComponentType<Record<string, never>> | LazyExoticComponent<ComponentType<Record<string, never>>>
 
@@ -75,8 +61,6 @@ export interface RouteConfig {
 	component?: RouteComponent
 	/** Schema for validating search params (Standard Schema compatible). */
 	searchSchema?: StandardSchema
-	/** Guard function called before entering this route. */
-	beforeEnter?: RouteGuard
 	/** Child routes. */
 	children?: RouteConfig[]
 	/** Whether this is a layout route (has outlet but no own path segment). */
@@ -117,8 +101,6 @@ export interface RouteNode {
 	component?: RouteComponent
 	/** Search params schema. */
 	searchSchema?: StandardSchema
-	/** Route guard. */
-	beforeEnter?: RouteGuard
 	/** Child nodes. */
 	children: RouteNode[]
 	/** Parent node reference. */

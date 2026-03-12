@@ -1,18 +1,15 @@
 import { LoaderCache } from './loader-cache.js'
 import { matchRoutes } from './matcher.js'
-import type { BlockerFn, GuardRedirect, NavigateOptions, NavigationAdapter, RouteMatch, RouteNode, RouterState } from './types.js'
+import type { BlockerFn, NavigateOptions, NavigationAdapter, RouteNode, RouterState } from './types.js'
 import { extractParamNames, parseParamSegment } from './utils.js'
 
-function isGuardRedirect(value: unknown): value is GuardRedirect {
-	return typeof value === 'object' && value !== null && 'redirect' in value && typeof (value as GuardRedirect).redirect === 'string'
-}
 
 /**
  * Thrown when a route guard prevents navigation.
  */
 export class NavigationAbortedError extends Error {
 	constructor() {
-		super('Navigation aborted by route guard')
+		super('Navigation aborted by blocker')
 		this.name = 'NavigationAbortedError'
 	}
 }
@@ -66,7 +63,6 @@ export class Router {
 	private invalidationListeners = new Set<() => void>()
 	private state: RouterState
 	private navigationId = 0
-	private currentAbortController?: AbortController
 	private stopFn: (() => void) | undefined
 	private blockers = new Set<BlockerFn>()
 	private pendingScrollBehavior: 'after-transition' | 'manual' = 'after-transition'
@@ -143,13 +139,6 @@ export class Router {
 			const scrollBehavior = this.pendingScrollBehavior
 			this.pendingScrollBehavior = 'after-transition'
 
-			// Abort any in-flight guard from a previous navigation
-			if (this.currentAbortController) {
-				this.currentAbortController.abort()
-			}
-			const controller = new AbortController()
-			this.currentAbortController = controller
-
 			event.intercept({
 				scroll: scrollBehavior,
 				handler: async () => {
@@ -167,39 +156,6 @@ export class Router {
 						...this.state,
 						isPending: true,
 					})
-
-					// Run route guards (outer → inner)
-					for (const match of matches) {
-						// A newer navigation has started — abandon this one
-						if (this.navigationId !== currentNavId) return
-
-						if (match.node.beforeEnter) {
-							const result = await match.node.beforeEnter(match, { signal: controller.signal })
-							if (result === false) {
-								// Guard prevented navigation
-								if (this.navigationId === currentNavId) {
-									this.setState({
-										...this.state,
-										isPending: false,
-									})
-								}
-								throw new NavigationAbortedError()
-							}
-							if (isGuardRedirect(result)) {
-								// Guard requested redirect — don't reset isPending, the redirect
-								// navigation will take over the pending state.
-								if (this.navigationId === currentNavId) {
-									const redirectURL = new URL(result.redirect, url)
-									const redirectMatches = matchRoutes(this.routes, this.createMatchUrl(redirectURL))
-									if (!redirectMatches) {
-										throw new Error(`[buzola] Guard redirect target "${result.redirect}" does not match any route.`)
-									}
-									this.navigate(result.redirect, { replace: true })
-								}
-								throw new NavigationAbortedError()
-							}
-						}
-					}
 
 					// A newer navigation has started — abandon this one
 					if (this.navigationId !== currentNavId) return

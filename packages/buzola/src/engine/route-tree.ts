@@ -1,4 +1,4 @@
-import type { RouteComponent, RouteConfig, RouteGuard, RouteNode, StandardSchema } from './types.js'
+import type { RouteComponent, RouteConfig, RouteNode, StandardSchema } from './types.js'
 
 /**
  * Normalize a path segment — ensure it starts with "/" and strip trailing slashes.
@@ -24,7 +24,6 @@ export interface CreateRouteNodeOptions {
 	fullPath: string
 	component?: RouteComponent
 	searchSchema?: StandardSchema
-	beforeEnter?: RouteGuard
 	children?: RouteNode[]
 	parent?: RouteNode
 	isLayout?: boolean
@@ -40,7 +39,6 @@ export function createRouteNode(options: CreateRouteNodeOptions): RouteNode {
 		fullPath,
 		component,
 		searchSchema,
-		beforeEnter,
 		children = [],
 		parent,
 		isLayout = false,
@@ -69,7 +67,6 @@ export function createRouteNode(options: CreateRouteNodeOptions): RouteNode {
 		prefixPattern,
 		component,
 		searchSchema,
-		beforeEnter,
 		children,
 		parent,
 		isLayout,
@@ -116,7 +113,6 @@ function buildRouteNodes(configs: RouteConfig[], parentPath: string): RouteNode[
 			fullPath,
 			component: config.component,
 			searchSchema: config.searchSchema,
-			beforeEnter: config.beforeEnter,
 			children,
 			isLayout,
 			isIndex,

@@ -19,16 +19,12 @@ export type {
 	BuzolaPageMap,
 	BuzolaPersistentParams,
 	EffectivePageParams,
-	GuardContext,
-	GuardRedirect,
 	NavigateOptions,
 	NavigationAdapter,
 	PageParams,
 	RegisteredPage,
 	RouteComponent,
 	RouteConfig,
-	RouteGuard,
-	RouteGuardResult,
 	RouteMatch,
 	RouteNode,
 	RouterState,
@@ -39,7 +35,7 @@ export type {
 export { s } from './engine/schema.js'
 
 // ─── Route definition ───────────────────────────────────────────────────────
-export { createPage } from './define/create-page.js'
+export { BuzolaRedirect, createPage, redirect } from './define/create-page.js'
 export type { CatchContext, PageDefinition, PageProps } from './define/create-page.js'
 
 // ─── React (re-export from subpath) ─────────────────────────────────────────

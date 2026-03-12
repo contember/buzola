@@ -30,7 +30,7 @@ export interface PageDefinition<TParams = Record<string, never>> {
 	route?: string
 	paramsSchema?: StandardSchema
 	paramsMeta: ParamMeta[]
-	loader?: (ctx: { params: any }) => Promise<unknown>
+	loader?: (ctx: { params: any; redirect: (location: string) => BuzolaRedirect }) => Promise<unknown>
 }
 
 // ─── Route pattern type safety ──────────────────────────────────────────────
@@ -114,14 +114,30 @@ function resolveParamsInput<T>(input: StandardSchema<T> | ParamsShape): {
 	return { schema, paramsMeta }
 }
 
+// ─── Redirect response ───────────────────────────────────────────────────────
+
+export class BuzolaRedirect {
+	readonly __buzolaRedirect = true
+	constructor(readonly location: string) {}
+}
+
+export function redirect(location: string): BuzolaRedirect {
+	return new BuzolaRedirect(location)
+}
+
 // ─── Loader helpers ─────────────────────────────────────────────────────────
 
-type LoaderFn = (ctx: { params: any }) => Promise<any>
+type LoaderFn = (ctx: { params: any; redirect: (location: string) => BuzolaRedirect }) => Promise<any>
 
 function combineLoaders(loaders: LoaderFn[]): LoaderFn | undefined {
 	if (loaders.length === 0) return undefined
 	if (loaders.length === 1) return loaders[0]
-	return async (ctx) => Object.assign({}, ...await Promise.all(loaders.map(fn => fn(ctx))))
+	return async (ctx) => {
+		const results = await Promise.all(loaders.map(fn => fn(ctx)))
+		const redir = results.find(r => r instanceof BuzolaRedirect)
+		if (redir) return redir
+		return Object.assign({}, ...results)
+	}
 }
 
 // ─── Component factory ──────────────────────────────────────────────────────
@@ -283,7 +299,7 @@ function createPageComponent<TParams>(
 				}
 			} else if (hasResolved) {
 				// Cache key changed + we have stale data → background reload (SWR)
-				const promise = loaderFn({ params })
+				const promise = loaderFn({ params, redirect })
 				activeCacheKey = cacheKey
 				activePromise = promise
 				pendingBackgroundKey = cacheKey
@@ -294,6 +310,10 @@ function createPageComponent<TParams>(
 					(result) => {
 						// Only apply if this is still the active load
 						if (activeCacheKey === cacheKey) {
+							if (result instanceof BuzolaRedirect) {
+								router?.navigate(result.location, { replace: true })
+								return
+							}
 							activeResolvedData = result
 							pendingBackgroundKey = null
 							forceUpdate()
@@ -311,10 +331,15 @@ function createPageComponent<TParams>(
 				)
 			} else {
 				// No stale data — first load, suspend via use()
-				const promise = loaderFn({ params })
+				const promise = loaderFn({ params, redirect })
 				activeCacheKey = cacheKey
 				activePromise = promise
-				data = use(promise)
+				const result = use(promise)
+				if (result instanceof BuzolaRedirect) {
+					router?.navigate(result.location, { replace: true })
+					return null
+				}
+				data = result
 				activeResolvedData = data
 				hasResolved = true
 			}
@@ -389,13 +414,13 @@ interface WithLoaderChain<TParams, TData>
 	extends WithRoute<TParams, PageProps<TParams> & { data: TData; invalidate: () => void; isLoading: boolean }>
 {
 	loader<TNew extends Record<string, unknown>>(
-		fn: (ctx: { params: TParams }) => Promise<TNew>,
+		fn: (ctx: { params: TParams; redirect: (location: string) => BuzolaRedirect }) => Promise<TNew | BuzolaRedirect>,
 	): WithLoaderChain<TParams, TData & TNew>
 }
 
 interface WithLoader<TParams> extends WithRoute<TParams, PageProps<TParams>> {
 	loader<TData extends Record<string, unknown>>(
-		fn: (ctx: { params: TParams }) => Promise<TData>,
+		fn: (ctx: { params: TParams; redirect: (location: string) => BuzolaRedirect }) => Promise<TData | BuzolaRedirect>,
 	): WithLoaderChain<TParams, TData>
 }
 
@@ -403,7 +428,7 @@ interface PageBuilder {
 	params<T extends ParamsShape>(shape: T): WithLoader<InferShape<T>>
 	params<T extends Record<string, unknown>>(schema: StandardSchema<T>): WithLoader<T>
 	loader<TData extends Record<string, unknown>>(
-		fn: (ctx: { params: Record<string, never> }) => Promise<TData>,
+		fn: (ctx: { params: Record<string, never>; redirect: (location: string) => BuzolaRedirect }) => Promise<TData | BuzolaRedirect>,
 	): WithLoaderChain<Record<string, never>, TData>
 	catch(handler: CatchHandler): WithCatch<Record<string, never>, PageProps<Record<string, never>>>
 	route<R extends string>(
