@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "@buzola/*@*"
+      - "v*"
 
 permissions: {}
 
@@ -26,12 +26,9 @@ jobs:
       - name: Parse tag
         id: tag
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          PACKAGE="${TAG%@*}"
-          VERSION="${TAG##*@}"
-          echo "package=${PACKAGE}" >> "$GITHUB_OUTPUT"
+          VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${PACKAGE}@${VERSION}"
+          echo "Publishing v${VERSION}"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -64,11 +61,9 @@ jobs:
           "
 
       - name: Publish @buzola/router
-        if: steps.tag.outputs.package == '@buzola/router'
         working-directory: packages/buzola
         run: npm publish --provenance --access public
 
       - name: Publish @buzola/vite-plugin
-        if: steps.tag.outputs.package == '@buzola/vite-plugin'
         working-directory: packages/vite-plugin
         run: npm publish --provenance --access public

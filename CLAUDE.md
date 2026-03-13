@@ -96,12 +96,11 @@ Both packages (`@buzola/router` and `@buzola/vite-plugin`) are always released t
 To release a new version:
 
 ```bash
-git tag "@buzola/router@<version>"
-git tag "@buzola/vite-plugin@<version>"
-git push origin "@buzola/router@<version>" "@buzola/vite-plugin@<version>"
+git tag "v<version>"
+git push origin "v<version>"
 ```
 
-The CI workflow (`.github/workflows/release.yml`) handles the rest — it runs lint, format check, typecheck, and tests, then publishes to npm with provenance. The version in `package.json` files is a placeholder; the actual version is taken from the git tag.
+The CI workflow (`.github/workflows/release.yml`) handles the rest — it runs lint, format check, typecheck, and tests, then publishes both packages to npm with provenance. The version in `package.json` files is a placeholder; the actual version is taken from the git tag.
 
 ## Code Style
 
