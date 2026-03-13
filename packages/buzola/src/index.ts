@@ -1,3 +1,6 @@
+// ─── Polyfills ──────────────────────────────────────────────────────────────
+import 'urlpattern-polyfill'
+
 // ─── Engine ─────────────────────────────────────────────────────────────────
 export { LoaderCache } from './engine/loader-cache.js'
 
