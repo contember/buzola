@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 import { createPage } from '../define/create-page.js'
-import type { StandardSchema } from '../engine/types.js'
+import type { EffectivePageParams, NavigateOptions, RegisteredPage, StandardSchema } from '../engine/types.js'
 import type { LinkProps } from '../react/link.js'
 
 // Register pages for type-safe testing
@@ -226,6 +226,79 @@ describe('Link JSX generic inference', () => {
 	it('rejects unregistered pages', () => {
 		// @ts-expect-error — page not in BuzolaPageMap
 		const _el = <Link to="nope">Nope</Link>
+		expect(true).toBe(true)
+	})
+})
+
+// ─── NavigateFn type safety ─────────────────────────────────────────────────
+
+/**
+ * Replicate the NavigateFn type from hooks.ts for testing without React hooks.
+ */
+type NavigateFn = <P extends RegisteredPage>(
+	to: P,
+	...args: [keyof EffectivePageParams<P>] extends [never] ? [options?: NavigateOptions]
+		// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+		: {} extends EffectivePageParams<P> ? [options?: NavigateOptions & { params?: EffectivePageParams<P> }]
+		: [options: NavigateOptions & { params: EffectivePageParams<P> }]
+) => void
+
+describe('NavigateFn type safety', () => {
+	const noop = (() => {}) as NavigateFn
+
+	it('static page does not require options', () => {
+		noop('home')
+		noop('about')
+		expect(true).toBe(true)
+	})
+
+	it('static page accepts NavigateOptions without params', () => {
+		noop('home', { replace: true })
+		expect(true).toBe(true)
+	})
+
+	it('static page rejects params', () => {
+		// @ts-expect-error — static page should not accept params
+		noop('home', { params: { foo: 'bar' } })
+		expect(true).toBe(true)
+	})
+
+	it('dynamic page requires options with params', () => {
+		noop('users/detail', { params: { userId: '1' } })
+
+		// @ts-expect-error — missing required options with params
+		noop('users/detail')
+		expect(true).toBe(true)
+	})
+
+	it('dynamic page requires correct param names', () => {
+		// @ts-expect-error — wrong param name (id instead of userId)
+		noop('users/detail', { params: { id: '1' } })
+		expect(true).toBe(true)
+	})
+
+	it('dynamic page rejects params passed directly as options (without params wrapper)', () => {
+		// @ts-expect-error — { userId: '1' } is not valid, must be { params: { userId: '1' } }
+		noop('users/detail', { userId: '1' })
+		expect(true).toBe(true)
+	})
+
+	it('multi-param page requires all params', () => {
+		noop('users/posts', { params: { userId: '1', postId: '2' } })
+
+		// @ts-expect-error — missing postId
+		noop('users/posts', { params: { userId: '1' } })
+		expect(true).toBe(true)
+	})
+
+	it('rejects unregistered pages', () => {
+		// @ts-expect-error — page not in BuzolaPageMap
+		noop('unknown')
+		expect(true).toBe(true)
+	})
+
+	it('allows NavigateOptions alongside params', () => {
+		noop('users/detail', { params: { userId: '1' }, replace: true })
 		expect(true).toBe(true)
 	})
 })
