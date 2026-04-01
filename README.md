@@ -30,15 +30,15 @@ npm install @buzola/router @buzola/vite-plugin
 
 ```ts
 // vite.config.ts
-import react from '@vitejs/plugin-react'
 import { buzolaPlugin } from '@buzola/vite-plugin'
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [
-    buzolaPlugin(),
-    react(),
-  ],
+	plugins: [
+		buzolaPlugin(),
+		react(),
+	],
 })
 ```
 
@@ -65,13 +65,13 @@ A simple page:
 import { createPage } from '@buzola/router'
 
 export default createPage()
-  .route('/')
-  .render(() => (
-    <div>
-      <h1>Home</h1>
-      <p>Welcome to Buzola!</p>
-    </div>
-  ))
+	.route('/')
+	.render(() => (
+		<div>
+			<h1>Home</h1>
+			<p>Welcome to Buzola!</p>
+		</div>
+	))
 ```
 
 A page with params and loaders:
@@ -81,26 +81,26 @@ A page with params and loaders:
 import { createPage, Link } from '@buzola/router'
 
 export default createPage()
-  .params({ userId: 'string', tab: '?string' })
-  .loader(async ({ params }) => {
-    const user = await fetchUser(params.userId)
-    return { user }
-  })
-  .loader(async ({ params }) => {
-    const posts = await fetchPosts(params.userId)
-    return { posts }
-  })
-  .route('/users/:userId')
-  .render(({ params, data, invalidate, isLoading }) => (
-    <div>
-      <h2>{data.user.name}</h2>
-      <p>Posts: {data.posts.length}</p>
-      <button onClick={invalidate}>Reload data</button>
-      <Link to="users/detail" params={{ userId: params.userId, tab: 'posts' }}>
-        Posts tab
-      </Link>
-    </div>
-  ))
+	.params({ userId: 'string', tab: '?string' })
+	.loader(async ({ params }) => {
+		const user = await fetchUser(params.userId)
+		return { user }
+	})
+	.loader(async ({ params }) => {
+		const posts = await fetchPosts(params.userId)
+		return { posts }
+	})
+	.route('/users/:userId')
+	.render(({ params, data, invalidate, isLoading }) => (
+		<div>
+			<h2>{data.user.name}</h2>
+			<p>Posts: {data.posts.length}</p>
+			<button onClick={invalidate}>Reload data</button>
+			<Link to="users/detail" params={{ userId: params.userId, tab: 'posts' }}>
+				Posts tab
+			</Link>
+		</div>
+	))
 ```
 
 ### 4. Create a layout
@@ -110,18 +110,18 @@ export default createPage()
 import { Link, Outlet } from '@buzola/router'
 
 export default function RootLayout() {
-  return (
-    <div>
-      <nav>
-        <Link to="home">Home</Link>
-        <Link to="about">About</Link>
-        <Link to="users">Users</Link>
-      </nav>
-      <main>
-        <Outlet />
-      </main>
-    </div>
-  )
+	return (
+		<div>
+			<nav>
+				<Link to="home">Home</Link>
+				<Link to="about">About</Link>
+				<Link to="users">Users</Link>
+			</nav>
+			<main>
+				<Outlet />
+			</main>
+		</div>
+	)
 }
 ```
 
@@ -133,7 +133,7 @@ import { BuzolaProvider } from '@buzola/router'
 import { pageRegistry, routes } from './buzola.gen'
 
 export function App() {
-  return <BuzolaProvider routes={routes} pageRegistry={pageRegistry} />
+	return <BuzolaProvider routes={routes} pageRegistry={pageRegistry} />
 }
 ```
 
@@ -158,48 +158,48 @@ createPage()
 
 ### Components
 
-| Component | Description |
-|---|---|
-| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `middleware` |
-| `<Link>` | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `asChild`, `activeExact` |
-| `<Outlet>` | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound` |
-| `<ErrorBoundary>` | Catches component errors in the route tree |
+| Component          | Description                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `middleware`                         |
+| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `asChild`, `activeExact` |
+| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                              |
+| `<ErrorBoundary>`  | Catches component errors in the route tree                                                               |
 
 ### Hooks
 
-| Hook | Returns |
-|---|---|
-| `useNavigate()` | Type-safe navigate function |
-| `useParams()` | Current route parameters |
-| `useSearchParams(schema?)` | Search parameters with optional validation |
-| `useRoute()` | Route info: `matches`, `pathname`, `isPending`, `pendingLocation` |
-| `useRouterState()` | Full router state |
-| `useRouter()` | Router instance |
-| `useBlocker(when)` | Navigation blocker: `{ state, proceed, reset }` |
-| `useInvalidate()` | Function to invalidate all loader caches |
-| `useNavigationState()` | Custom state from Navigation API |
+| Hook                       | Returns                                                           |
+| -------------------------- | ----------------------------------------------------------------- |
+| `useNavigate()`            | Type-safe navigate function                                       |
+| `useParams()`              | Current route parameters                                          |
+| `useSearchParams(schema?)` | Search parameters with optional validation                        |
+| `useRoute()`               | Route info: `matches`, `pathname`, `isPending`, `pendingLocation` |
+| `useRouterState()`         | Full router state                                                 |
+| `useRouter()`              | Router instance                                                   |
+| `useBlocker(when)`         | Navigation blocker: `{ state, proceed, reset }`                   |
+| `useInvalidate()`          | Function to invalidate all loader caches                          |
+| `useNavigationState()`     | Custom state from Navigation API                                  |
 
 ### Vite Plugin Options
 
 ```ts
 buzolaPlugin({
-  routesDir: 'src/routes',       // Routes directory (default: "src/routes")
-  output: 'src/buzola.gen.ts',   // Generated types file (default: "src/buzola.gen.ts")
-  persistentParams: ['lang'],    // Params that persist across navigations
-  name: 'admin',                 // Name for multi-SPA setups
+	routesDir: 'src/routes', // Routes directory (default: "src/routes")
+	output: 'src/buzola.gen.ts', // Generated types file (default: "src/buzola.gen.ts")
+	persistentParams: ['lang'], // Params that persist across navigations
+	name: 'admin', // Name for multi-SPA setups
 })
 ```
 
 ## File Conventions
 
-| Pattern | Description |
-|---|---|
-| `_layout.tsx` | Layout component (wraps children via `<Outlet>`) |
-| `_404.tsx` | Not found handler for unmatched routes |
-| `index.tsx` | Index route (renders at parent's exact path) |
-| `[param].tsx` | Dynamic segment |
-| `[...slug].tsx` | Catch-all segment |
-| `(group)/` | Pathless group (organizes files without affecting URL) |
+| Pattern         | Description                                            |
+| --------------- | ------------------------------------------------------ |
+| `_layout.tsx`   | Layout component (wraps children via `<Outlet>`)       |
+| `_404.tsx`      | Not found handler for unmatched routes                 |
+| `index.tsx`     | Index route (renders at parent's exact path)           |
+| `[param].tsx`   | Dynamic segment                                        |
+| `[...slug].tsx` | Catch-all segment                                      |
+| `(group)/`      | Pathless group (organizes files without affecting URL) |
 
 Files use `createPage()` to define their params, loaders, and component. The `.route()` method can override the URL pattern without affecting file-tree nesting.
 
