@@ -1,6 +1,3 @@
-// ─── Polyfills ──────────────────────────────────────────────────────────────
-import 'urlpattern-polyfill'
-
 // ─── Engine ─────────────────────────────────────────────────────────────────
 export { LoaderCache } from './engine/loader-cache.js'
 
@@ -31,6 +28,7 @@ export type {
 	RouteMatch,
 	RouteNode,
 	RouterState,
+	RouteTree,
 	StandardSchema,
 } from './engine/types.js'
 

@@ -89,7 +89,7 @@ export interface RouteMatch {
 
 // ─── Route tree ─────────────────────────────────────────────────────────────
 
-/** A node in the route tree. */
+/** A node in a route match chain. Represents a layout or page with its component and metadata. */
 export interface RouteNode {
 	/** Unique ID for this node. */
 	id: string
@@ -97,24 +97,42 @@ export interface RouteNode {
 	path: string
 	/** Full path from root (e.g., "/users/:userId"). */
 	fullPath: string
-	/** Compiled URLPattern for matching (leaf/index routes). */
-	pattern?: URLPattern
-	/** Compiled prefix URLPattern for param extraction (layout routes). */
-	prefixPattern?: URLPattern
 	/** Component to render. */
 	component?: RouteComponent
 	/** Search params schema. */
 	searchSchema?: StandardSchema
 	/** Preload function — triggers lazy component import ahead of navigation. */
 	preload?: () => void
-	/** Child nodes. */
-	children: RouteNode[]
-	/** Parent node reference. */
-	parent?: RouteNode
 	/** Whether this is a layout node (renders children via Outlet). */
 	isLayout: boolean
 	/** Whether this is an index route. */
 	isIndex: boolean
+}
+
+// ─── Route trie ─────────────────────────────────────────────────────────────
+
+/** A node in the segment trie used for URL matching. */
+export interface TrieNode {
+	/** Static children — exact segment match via Map lookup (O(1)). */
+	staticChildren: Map<string, TrieNode>
+	/** Dynamic child — matches any single segment as a named param. */
+	dynamicChild?: { paramName: string; node: TrieNode }
+	/** Catch-all child — matches all remaining segments. */
+	catchAllChild?: { paramName: string; chain: RouteNode[] }
+	/** When defined, a route terminates at this trie node. */
+	route?: TrieRoute
+}
+
+/** A terminal route in the trie, containing the layout chain from root to leaf. */
+export interface TrieRoute {
+	/** Match chain: array of RouteNode from root layout to leaf page. */
+	chain: RouteNode[]
+}
+
+/** Opaque route tree built from RouteConfig[]. Passed to matchRoutes() and Router. */
+export interface RouteTree {
+	/** @internal Root of the segment trie. */
+	root: TrieNode
 }
 
 // ─── Router state ───────────────────────────────────────────────────────────
