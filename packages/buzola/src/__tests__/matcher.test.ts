@@ -145,6 +145,50 @@ describe('matchRoutes', () => {
 		expect(matches![1].params).toEqual({ userId: '42' })
 	})
 
+	it('prefers static route over dynamic sibling when layout with matchPath comes first', () => {
+		// Simulates the real-world scenario: layout with dynamic matchPath children
+		// appears before a static route at the same level (e.g., /project/detail layout
+		// with matchPath /project/:id vs /project/create static page)
+		const tree = createTestTree([
+			{
+				path: '/',
+				component: dummyComponent,
+				isLayout: true,
+				children: [
+					{
+						path: '/project/detail',
+						component: dummyComponent,
+						isLayout: true,
+						children: [
+							{ path: '/', matchPath: '/project/:id', component: dummyComponent, isIndex: true },
+						],
+					},
+					{ path: '/project/create', component: dummyComponent },
+				],
+			},
+		])
+
+		// /project/create should match the static route, not /project/:id with id=create
+		const matches = matchRoutes(tree, new URL('http://localhost/project/create'))
+		expect(matches).not.toBeNull()
+		const leaf = matches![matches!.length - 1]
+		expect(leaf.node.fullPath).toBe('/project/create')
+		expect(leaf.params).toEqual({})
+	})
+
+	it('prefers route with fewer dynamic params among siblings', () => {
+		const tree = createTestTree([
+			{ path: '/users/:userId', component: dummyComponent },
+			{ path: '/users/me', component: dummyComponent },
+		])
+
+		const matches = matchRoutes(tree, new URL('http://localhost/users/me'))
+		expect(matches).not.toBeNull()
+		expect(matches).toHaveLength(1)
+		expect(matches![0].node.fullPath).toBe('/users/me')
+		expect(matches![0].params).toEqual({})
+	})
+
 	it('does not match partial paths', () => {
 		const tree = createTestTree([
 			{ path: '/about', component: dummyComponent },

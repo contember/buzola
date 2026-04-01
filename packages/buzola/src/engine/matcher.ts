@@ -3,33 +3,58 @@ import type { RouteMatch, RouteNode } from './types.js'
 /**
  * Match a URL against the route tree.
  * Returns an array of RouteMatch from root layout to leaf page, or null if no match.
- * Performs depth-first matching.
+ * When multiple routes match, selects the most specific one (fewest dynamic params).
  */
 export function matchRoutes(nodes: RouteNode[], url: URL): RouteMatch[] | null {
 	const pathname = url.pathname
+	return pickBestMatch(nodes, pathname)
+}
+
+/**
+ * Find the best match among sibling nodes.
+ * Tries all siblings and picks the most specific match (fewest dynamic params).
+ */
+function pickBestMatch(nodes: RouteNode[], pathname: string): RouteMatch[] | null {
+	let best: RouteMatch[] | null = null
+	let bestParamCount = Infinity
 
 	for (const node of nodes) {
 		const result = matchNode(node, pathname)
-		if (result) return result
+		if (result) {
+			const paramCount = countParams(result)
+			if (paramCount < bestParamCount) {
+				best = result
+				bestParamCount = paramCount
+				if (paramCount === 0) break // Can't do better than zero params
+			}
+		}
 	}
 
-	return null
+	return best
+}
+
+/**
+ * Count total dynamic params across all matches in a chain.
+ */
+function countParams(matches: RouteMatch[]): number {
+	let count = 0
+	for (const match of matches) {
+		count += Object.keys(match.params).length
+	}
+	return count
 }
 
 function matchNode(node: RouteNode, pathname: string): RouteMatch[] | null {
 	// Layout nodes: try to match children, prepend self if any child matches
 	if (node.isLayout && !node.isIndex) {
-		for (const child of node.children) {
-			const childMatch = matchNode(child, pathname)
-			if (childMatch) {
-				// Layout is part of the match chain
-				const layoutMatch: RouteMatch = {
-					node,
-					params: extractLayoutParams(node, pathname),
-					pathname,
-				}
-				return [layoutMatch, ...childMatch]
+		const childMatch = pickBestMatch(node.children, pathname)
+		if (childMatch) {
+			const layoutMatch: RouteMatch = {
+				node,
+				params: extractLayoutParams(node, pathname),
+				pathname,
 			}
+			return [layoutMatch, ...childMatch]
 		}
 		return null
 	}
@@ -43,11 +68,9 @@ function matchNode(node: RouteNode, pathname: string): RouteMatch[] | null {
 
 			// If this node has children (e.g., a page with nested routes), try them too
 			if (node.children.length > 0) {
-				for (const child of node.children) {
-					const childMatch = matchNode(child, pathname)
-					if (childMatch) {
-						return [match, ...childMatch]
-					}
+				const childMatch = pickBestMatch(node.children, pathname)
+				if (childMatch) {
+					return [match, ...childMatch]
 				}
 			}
 
