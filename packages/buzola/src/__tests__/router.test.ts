@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test'
+import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
 import { Router } from '../engine/router.js'
@@ -120,9 +121,14 @@ describe('Router', () => {
 			},
 		])
 
-		expect(routes[0].id).toBe('route:/:layout')
-		expect(routes[0].children[0].id).toBe('route:/')
-		expect(routes[0].children[1].id).toBe('route:/about')
+		// Verify IDs through matching
+		const indexMatches = matchRoutes(routes, new URL('http://localhost/'))!
+		expect(indexMatches[0].node.id).toBe('route:/:layout')
+		expect(indexMatches[1].node.id).toBe('route:/')
+
+		const aboutMatches = matchRoutes(routes, new URL('http://localhost/about'))!
+		expect(aboutMatches[0].node.id).toBe('route:/:layout')
+		expect(aboutMatches[1].node.id).toBe('route:/about')
 	})
 })
 
