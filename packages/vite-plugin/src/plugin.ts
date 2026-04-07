@@ -1,5 +1,6 @@
 import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
+import { loadConfig } from './config.js'
 import { generate, type GenerateOptions } from './generate.js'
 
 export interface BuzolaPluginOptions {
@@ -34,14 +35,12 @@ export interface BuzolaPluginOptions {
  * - BuzolaPageMap type augmentation
  *
  * Provides `virtual:buzola/routes` virtual module.
+ *
+ * Options can also be provided via `buzola.config.ts` in the project root.
+ * Plugin options take precedence over the config file.
  */
 export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
-	const {
-		name: nameOption,
-		routesDir: routesDirOption = 'src/routes',
-		output: outputOption = 'src/buzola.gen.ts',
-		persistentParams: persistentParamsOption,
-	} = options
+	const { name: nameOption } = options
 
 	const pluginName = nameOption ? `buzola:${nameOption}` : 'buzola'
 	const virtualModuleId = nameOption ? `virtual:buzola/${nameOption}/routes` : 'virtual:buzola/routes'
@@ -55,12 +54,18 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		name: pluginName,
 		enforce: 'pre',
 
-		configResolved(config) {
+		async configResolved(config) {
 			root = config.root
+			const fileConfig = await loadConfig(root)
+
+			const routesDir = options.routesDir ?? fileConfig.routesDir ?? 'src/routes'
+			const output = options.output ?? fileConfig.output ?? 'src/buzola.gen.ts'
+			const persistentParams = options.persistentParams ?? fileConfig.persistentParams
+
 			baseOptions = {
-				routesDir: path.resolve(root, routesDirOption),
-				outputPath: path.resolve(root, outputOption),
-				persistentParams: persistentParamsOption,
+				routesDir: path.resolve(root, routesDir),
+				outputPath: path.resolve(root, output),
+				persistentParams,
 			}
 		},
 
