@@ -1,3 +1,4 @@
+import { createJiti } from 'jiti'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
@@ -19,6 +20,7 @@ const CONFIG_FILES = ['buzola.config.ts', 'buzola.config.js', 'buzola.config.mjs
 /**
  * Load buzola config from the project root.
  * Looks for `buzola.config.ts`, `buzola.config.js`, or `buzola.config.mjs`.
+ * Uses jiti to support TypeScript configs when running under Node.js.
  *
  * @returns The loaded config, or an empty object if no config file is found.
  */
@@ -27,8 +29,9 @@ export async function loadConfig(root: string): Promise<BuzolaConfig> {
 		const configPath = path.resolve(root, file)
 		if (!fs.existsSync(configPath)) continue
 
-		const mod = await import(configPath)
-		return mod.default ?? mod
+		const jiti = createJiti(configPath)
+		const mod = await jiti.import(configPath)
+		return (mod as any).default ?? mod
 	}
 
 	return {}

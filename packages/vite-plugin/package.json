@@ -24,7 +24,8 @@
 		"directory": "packages/vite-plugin"
 	},
 	"dependencies": {
-		"@buzola/router": "workspace:*"
+		"@buzola/router": "workspace:*",
+		"jiti": "^2.6.1"
 	},
 	"devDependencies": {
 		"@types/node": "^25.3.3",
