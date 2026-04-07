@@ -1,10 +1,8 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
-import { generateRouteModule } from './generator/codegen.js'
-import type { ModuleLoader } from './generator/page-extractor.js'
-import { scanRouteFiles } from './generator/scanner.js'
-import { buildFileRouteTree } from './generator/tree-builder.js'
+import { loadConfig } from './config.js'
+import { generate, type GenerateOptions } from './generate.js'
 
 export interface BuzolaPluginOptions {
 	/**
@@ -38,45 +36,38 @@ export interface BuzolaPluginOptions {
  * - BuzolaPageMap type augmentation
  *
  * Provides `virtual:buzola/routes` virtual module.
+ *
+ * Options can also be provided via `buzola.config.ts` in the project root.
+ * Plugin options take precedence over the config file.
  */
 export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
-	const {
-		name: nameOption,
-		routesDir: routesDirOption = 'src/routes',
-		output: outputOption = 'src/buzola.gen.ts',
-		persistentParams: persistentParamsOption,
-	} = options
+	const { name: nameOption } = options
 
 	const pluginName = nameOption ? `buzola:${nameOption}` : 'buzola'
 	const virtualModuleId = nameOption ? `virtual:buzola/${nameOption}/routes` : 'virtual:buzola/routes'
 	const resolvedVirtualId = '\0' + virtualModuleId
 
 	let root: string
-	let routesDir: string
-	let outputPath: string
+	let baseOptions: Omit<GenerateOptions, 'moduleLoader'>
 	let server: ViteDevServer | undefined
-
-	async function generate(moduleLoader: ModuleLoader): Promise<boolean> {
-		const files = scanRouteFiles(routesDir)
-		const tree = await buildFileRouteTree(files, moduleLoader)
-		const code = generateRouteModule({
-			tree,
-			routesDir,
-			outputPath,
-			persistentParams: persistentParamsOption,
-		})
-
-		return writeIfChanged(outputPath, code)
-	}
 
 	return {
 		name: pluginName,
 		enforce: 'pre',
 
-		configResolved(config) {
+		async configResolved(config) {
 			root = config.root
-			routesDir = path.resolve(root, routesDirOption)
-			outputPath = path.resolve(root, outputOption)
+			const fileConfig = await loadConfig(root)
+
+			const routesDir = options.routesDir ?? fileConfig.routesDir ?? 'src/routes'
+			const output = options.output ?? fileConfig.output ?? 'src/buzola.gen.ts'
+			const persistentParams = options.persistentParams ?? fileConfig.persistentParams
+
+			baseOptions = {
+				routesDir: path.resolve(root, routesDir),
+				outputPath: path.resolve(root, output),
+				persistentParams,
+			}
 		},
 
 		configureServer(srv) {
@@ -84,10 +75,10 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		async buildStart() {
-			if (!fs.existsSync(routesDir)) return
+			if (!fs.existsSync(baseOptions.routesDir)) return
 
 			if (server) {
-				await generate((p) => server!.ssrLoadModule(p))
+				await generate({ ...baseOptions, moduleLoader: (p) => server!.ssrLoadModule(p) })
 			} else {
 				// Production build — create a temporary Vite server for module loading
 				const { createServer } = await import('vite')
@@ -98,7 +89,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 					optimizeDeps: { noDiscovery: true },
 				})
 				try {
-					await generate((p) => tempServer.ssrLoadModule(p))
+					await generate({ ...baseOptions, moduleLoader: (p) => tempServer.ssrLoadModule(p) })
 				} finally {
 					await tempServer.close()
 				}
@@ -113,14 +104,14 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 
 		load(id) {
 			if (id === resolvedVirtualId) {
-				return `export { routes, pageRegistry } from '${outputPath.replace(/\.ts$/, '')}';\n`
+				return `export { routes, pageRegistry } from '${baseOptions.outputPath.replace(/\.ts$/, '')}';\n`
 			}
 		},
 
 		async handleHotUpdate({ file }) {
-			if (!file.startsWith(routesDir) || !server) return
+			if (!file.startsWith(baseOptions.routesDir) || !server) return
 
-			const changed = await generate((p) => server!.ssrLoadModule(p))
+			const changed = await generate({ ...baseOptions, moduleLoader: (p) => server!.ssrLoadModule(p) })
 			if (!changed) return
 
 			// Invalidate the virtual module so Vite re-evaluates it.
@@ -134,13 +125,4 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 			}
 		},
 	}
-}
-
-function writeIfChanged(filePath: string, content: string): boolean {
-	if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf-8') === content) {
-		return false
-	}
-
-	fs.writeFileSync(filePath, content, 'utf-8')
-	return true
 }

@@ -4,6 +4,9 @@
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"bin": {
+		"buzola": "./dist/cli.js"
+	},
 	"exports": {
 		".": {
 			"bun": "./src/index.ts",
