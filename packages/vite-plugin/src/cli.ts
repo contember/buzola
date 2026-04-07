@@ -10,9 +10,22 @@ const { values } = parseArgs({
 		output: { type: 'string', short: 'o' },
 		'persistent-param': { type: 'string', multiple: true },
 		root: { type: 'string' },
+		help: { type: 'boolean', short: 'h', default: false },
 	},
 	strict: true,
 })
+
+if (values.help) {
+	console.log(`Usage: buzola-generate [options]
+
+Options:
+  -r, --routes-dir <path>         Routes directory (default: src/routes)
+  -o, --output <path>             Output file path (default: src/buzola.gen.ts)
+      --persistent-param <name>   Persistent parameter name (repeatable)
+      --root <path>               Project root directory (default: cwd)
+  -h, --help                      Show this help message`)
+	process.exit(0)
+}
 
 const root = path.resolve(values.root ?? process.cwd())
 const fileConfig = await loadConfig(root)
