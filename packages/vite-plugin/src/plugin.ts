@@ -1,3 +1,4 @@
+import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
 import { loadConfig } from './config.js'
@@ -74,6 +75,8 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		async buildStart() {
+			if (!fs.existsSync(baseOptions.routesDir)) return
+
 			if (server) {
 				await generate({ ...baseOptions, moduleLoader: (p) => server!.ssrLoadModule(p) })
 			} else {

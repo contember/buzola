@@ -22,12 +22,18 @@ export interface GenerateOptions {
  * default module loader. Pass a custom `moduleLoader` to integrate with
  * Vite's `ssrLoadModule` or other bundlers.
  *
+ * Note: The default module loader uses native `import()`, which can load
+ * `.ts`/`.tsx` files with Bun but not with Node.js. For Node.js, provide
+ * a custom `moduleLoader` (e.g. via Vite's `ssrLoadModule`).
+ *
  * @returns `true` if the output file was written (content changed), `false` otherwise.
  */
 export async function generate(options: GenerateOptions): Promise<boolean> {
-	const { routesDir, outputPath, persistentParams, moduleLoader = (p: string) => import(p) } = options
+	const { routesDir, outputPath, persistentParams, moduleLoader = defaultModuleLoader } = options
 
-	if (!fs.existsSync(routesDir)) return false
+	if (!fs.existsSync(routesDir)) {
+		throw new Error(`Routes directory does not exist: ${routesDir}`)
+	}
 
 	const files = scanRouteFiles(routesDir)
 	const tree = await buildFileRouteTree(files, moduleLoader)
@@ -36,7 +42,19 @@ export async function generate(options: GenerateOptions): Promise<boolean> {
 	return writeIfChanged(outputPath, code)
 }
 
-export function writeIfChanged(filePath: string, content: string): boolean {
+async function defaultModuleLoader(absolutePath: string): Promise<Record<string, unknown>> {
+	try {
+		return await import(absolutePath)
+	} catch (error) {
+		throw new Error(
+			`Failed to load module "${absolutePath}". The default module loader uses native import() which `
+				+ `supports .ts/.tsx files with Bun but not Node.js. For Node.js, provide a custom moduleLoader option.`,
+			{ cause: error },
+		)
+	}
+}
+
+function writeIfChanged(filePath: string, content: string): boolean {
 	if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf-8') === content) {
 		return false
 	}
