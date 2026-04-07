@@ -1,6 +1,9 @@
 export { buzolaPlugin } from './plugin.js'
 export type { BuzolaPluginOptions } from './plugin.js'
 
+export { generate } from './generate.js'
+export type { GenerateOptions } from './generate.js'
+
 export { scanRouteFiles } from './generator/scanner.js'
 export type { ScannedFile } from './generator/scanner.js'
 
