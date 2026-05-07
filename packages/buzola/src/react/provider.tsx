@@ -1,7 +1,7 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { createBrowserNavigationAdapter } from '../engine/navigation-adapter.js'
 import { Router } from '../engine/router.js'
-import type { RouteMatch, RouteNode } from '../engine/types.js'
+import type { RouteMatch, RouteTree } from '../engine/types.js'
 import { RouteContext, type RouteContextValue, RouterContext } from './context.js'
 import { Outlet } from './outlet.js'
 
@@ -28,7 +28,7 @@ export type BuzolaProviderProps =
 		| { router: Router; routes?: never; persistentParams?: never; pageRegistry?: never }
 		| {
 			router?: never
-			routes: RouteNode[]
+			routes: RouteTree
 			persistentParams?: () => Record<string, string>
 			pageRegistry?: Record<string, string>
 		}

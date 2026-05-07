@@ -1,6 +1,6 @@
 import { LoaderCache } from './loader-cache.js'
 import { matchRoutes } from './matcher.js'
-import type { BlockerFn, NavigateOptions, NavigationAdapter, RouteNode, RouterState } from './types.js'
+import type { BlockerFn, NavigateOptions, NavigationAdapter, RouterState, RouteTree } from './types.js'
 import { extractParamNames, parseParamSegment } from './utils.js'
 
 /**
@@ -16,8 +16,8 @@ export class NavigationAbortedError extends Error {
 export type RouterSubscriber = (state: RouterState) => void
 
 export interface RouterOptions {
-	/** Route tree nodes. */
-	routes: RouteNode[]
+	/** Route tree (segment trie). */
+	routes: RouteTree
 	/** Navigation adapter (browser or memory). */
 	adapter: NavigationAdapter
 	/** Enable View Transitions API for navigations. */
@@ -52,7 +52,7 @@ export interface RouterOptions {
  * Intercepts all navigations via the Navigation API and manages route matching.
  */
 export class Router {
-	private routes: RouteNode[]
+	private routes: RouteTree
 	private adapter: NavigationAdapter
 	private viewTransitions: boolean
 	private readonly _basePath: string
@@ -414,7 +414,7 @@ export class Router {
 	/**
 	 * Update the route tree (for HMR).
 	 */
-	updateRoutes(routes: RouteNode[]): void {
+	updateRoutes(routes: RouteTree): void {
 		this.routes = routes
 		// Re-match current URL with new routes
 		const matches = matchRoutes(this.routes, this.createMatchUrl(this.state.location)) ?? []
