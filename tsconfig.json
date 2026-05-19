@@ -2,6 +2,8 @@
 	"files": [],
 	"references": [
 		{ "path": "packages/buzola" },
-		{ "path": "packages/vite-plugin" }
+		{ "path": "packages/codegen" },
+		{ "path": "packages/vite-plugin" },
+		{ "path": "packages/bun-plugin" }
 	]
 }

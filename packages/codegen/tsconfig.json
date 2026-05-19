@@ -7,7 +7,6 @@
 	},
 	"include": ["src"],
 	"references": [
-		{ "path": "../buzola" },
-		{ "path": "../codegen" }
+		{ "path": "../buzola" }
 	]
 }

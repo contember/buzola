@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import * as path from 'node:path'
 import { parseArgs } from 'node:util'
-import { loadConfig } from './config.js'
 import { generate } from './generate.js'
+import { resolveOptions } from './resolve.js'
 
 const { values } = parseArgs({
 	options: {
@@ -27,17 +27,17 @@ Options:
 	process.exit(0)
 }
 
-const root = path.resolve(values.root ?? process.cwd())
-const fileConfig = await loadConfig(root)
+const options = await resolveOptions({
+	root: values.root,
+	routesDir: values['routes-dir'],
+	output: values.output,
+	persistentParams: values['persistent-param'],
+})
 
-const routesDir = path.resolve(root, values['routes-dir'] ?? fileConfig.routesDir ?? 'src/routes')
-const outputPath = path.resolve(root, values.output ?? fileConfig.output ?? 'src/buzola.gen.ts')
-const persistentParams = values['persistent-param'] ?? fileConfig.persistentParams
-
-const changed = await generate({ routesDir, outputPath, persistentParams })
+const changed = await generate(options)
 
 if (changed) {
-	console.log(`Generated ${path.relative(root, outputPath)}`)
+	console.log(`Generated ${path.relative(options.root, options.outputPath)}`)
 } else {
 	console.log('No changes')
 }

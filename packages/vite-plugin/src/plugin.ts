@@ -1,30 +1,8 @@
+import { type BasePluginOptions, buildVirtualSource, generate, type ResolvedOptions, resolveOptions, resolveVirtualModuleId } from '@buzola/codegen'
 import * as fs from 'node:fs'
-import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
-import { loadConfig } from './config.js'
-import { generate, type GenerateOptions } from './generate.js'
 
-export interface BuzolaPluginOptions {
-	/**
-	 * Unique name for this plugin instance. Required when registering multiple
-	 * entrypoints in the same Vite config. Affects the plugin name
-	 * (`buzola:${name}`) and the virtual module ID (`virtual:buzola/${name}/routes`).
-	 *
-	 * When omitted, the plugin uses `buzola` as its name and
-	 * `virtual:buzola/routes` as the virtual module ID.
-	 */
-	name?: string
-	/** Path to routes directory, relative to project root. Defaults to "src/routes". */
-	routesDir?: string
-	/** Path to output generated file, relative to project root. Defaults to "src/buzola.gen.ts". */
-	output?: string
-	/**
-	 * Parameter names that should be persistent across navigations.
-	 * When set, generates a BuzolaPersistentParams type augmentation
-	 * so these params become optional in Link and navigate() calls.
-	 */
-	persistentParams?: string[]
-}
+export interface BuzolaPluginOptions extends BasePluginOptions {}
 
 /**
  * Vite plugin for Buzola page-centric routing.
@@ -41,14 +19,11 @@ export interface BuzolaPluginOptions {
  * Plugin options take precedence over the config file.
  */
 export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
-	const { name: nameOption } = options
+	const { pluginName, id: virtualId } = resolveVirtualModuleId(options.name)
+	const resolvedVirtualId = '\0' + virtualId
 
-	const pluginName = nameOption ? `buzola:${nameOption}` : 'buzola'
-	const virtualModuleId = nameOption ? `virtual:buzola/${nameOption}/routes` : 'virtual:buzola/routes'
-	const resolvedVirtualId = '\0' + virtualModuleId
-
-	let root: string
-	let baseOptions: Omit<GenerateOptions, 'moduleLoader'>
+	let baseOptions: ResolvedOptions
+	let virtualSource: string
 	let server: ViteDevServer | undefined
 
 	return {
@@ -56,18 +31,8 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		enforce: 'pre',
 
 		async configResolved(config) {
-			root = config.root
-			const fileConfig = await loadConfig(root)
-
-			const routesDir = options.routesDir ?? fileConfig.routesDir ?? 'src/routes'
-			const output = options.output ?? fileConfig.output ?? 'src/buzola.gen.ts'
-			const persistentParams = options.persistentParams ?? fileConfig.persistentParams
-
-			baseOptions = {
-				routesDir: path.resolve(root, routesDir),
-				outputPath: path.resolve(root, output),
-				persistentParams,
-			}
+			baseOptions = await resolveOptions({ root: config.root, ...options })
+			virtualSource = buildVirtualSource(baseOptions.outputPath)
 		},
 
 		configureServer(srv) {
@@ -80,10 +45,9 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 			if (server) {
 				await generate({ ...baseOptions, moduleLoader: (p) => server!.ssrLoadModule(p) })
 			} else {
-				// Production build — create a temporary Vite server for module loading
 				const { createServer } = await import('vite')
 				const tempServer = await createServer({
-					root,
+					root: baseOptions.root,
 					server: { middlewareMode: true },
 					logLevel: 'silent',
 					optimizeDeps: { noDiscovery: true },
@@ -97,14 +61,14 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		resolveId(id) {
-			if (id === virtualModuleId) {
+			if (id === virtualId) {
 				return resolvedVirtualId
 			}
 		},
 
 		load(id) {
 			if (id === resolvedVirtualId) {
-				return `export { routes, pageRegistry } from '${baseOptions.outputPath.replace(/\.ts$/, '')}';\n`
+				return virtualSource
 			}
 		},
 
