@@ -13,6 +13,13 @@ export interface CodegenOptions {
 }
 
 /**
+ * Quote a property key when it isn't a valid JS identifier (e.g. hyphenated).
+ */
+function formatPropertyKey(name: string): string {
+	return /^[A-Za-z_$][\w$]*$/.test(name) ? name : `'${name}'`
+}
+
+/**
  * Generate the buzola.gen.ts file with:
  * 1. Module augmentation for BuzolaPageMap (type safety)
  * 2. Page registry (page ID → route pattern)
@@ -70,7 +77,8 @@ export function generateRouteModule(options: CodegenOptions): string {
 		} else {
 			const paramEntries = page.params.map(p => {
 				const type = p.array ? 'string[]' : 'string'
-				return p.optional ? `${p.name}?: ${type}` : `${p.name}: ${type}`
+				const key = formatPropertyKey(p.name)
+				return p.optional ? `${key}?: ${type}` : `${key}: ${type}`
 			}).join('; ')
 			lines.push(`    '${page.pageId}': { ${paramEntries} };`)
 		}
@@ -79,7 +87,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 	if (options.persistentParams && options.persistentParams.length > 0) {
 		lines.push('  interface BuzolaPersistentParams {')
 		for (const param of options.persistentParams) {
-			lines.push(`    ${param}: true;`)
+			lines.push(`    ${formatPropertyKey(param)}: true;`)
 		}
 		lines.push('  }')
 	}

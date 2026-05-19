@@ -14,6 +14,49 @@ describe('generateRouteModule', () => {
 		expect(output).toContain('lang: true;')
 	})
 
+	it('quotes hyphenated persistentParams keys', () => {
+		const output = generateRouteModule({
+			tree: [],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+			persistentParams: ['create-new-project', 'source', 'utm-medium'],
+		})
+
+		expect(output).toContain("'create-new-project': true;")
+		expect(output).toContain('source: true;')
+		expect(output).toContain("'utm-medium': true;")
+	})
+
+	it('quotes hyphenated page param keys in BuzolaPageMap', () => {
+		const output = generateRouteModule({
+			tree: [{
+				segment: 'users',
+				fullPath: '/users',
+				filePath: '/tmp/routes/users.tsx',
+				exportName: 'default',
+				isLayout: false,
+				isIndex: false,
+				isNotFound: false,
+				isPathlessGroup: false,
+				pageExports: [{
+					pageId: 'users',
+					exportName: 'default',
+					routePattern: '/users',
+					params: [
+						{ name: 'create-new-project', optional: true, array: false },
+						{ name: 'source', optional: false, array: false },
+					],
+				}],
+				children: [],
+			}],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+		})
+
+		expect(output).toContain("'create-new-project'?: string")
+		expect(output).toContain('source: string')
+	})
+
 	it('does not emit BuzolaPersistentParams without persistentParams', () => {
 		const output = generateRouteModule({
 			tree: [],
