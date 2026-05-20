@@ -1,2 +1,2 @@
 export { buzolaPlugin } from './plugin.js'
-export type { BuzolaBunPlugin, BuzolaPluginOptions } from './plugin.js'
+export type { BuzolaPluginOptions } from './plugin.js'

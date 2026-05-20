@@ -4,22 +4,25 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { buzolaPlugin } from '../plugin.js'
 
+type ResolveHandler = (args: { path: string }) => unknown
+type LoadHandler = (args: unknown) => { contents: string; loader: string }
+
 interface CapturedHandlers {
-	resolve?: (args: { path: string }) => unknown
-	load?: (args: unknown) => { contents: string; loader: string }
+	resolve?: ResolveHandler
+	load?: LoadHandler
 }
 
-function captureHandlers(setup: (build: never) => void | Promise<void>): CapturedHandlers {
+async function runSetup(plugin: { setup: (build: never) => void | Promise<void> }): Promise<CapturedHandlers> {
 	const captured: CapturedHandlers = {}
 	const mockBuild = {
-		onResolve: (_opts: unknown, fn: CapturedHandlers['resolve']) => {
+		onResolve: (_opts: unknown, fn: ResolveHandler) => {
 			captured.resolve = fn
 		},
-		onLoad: (_opts: unknown, fn: CapturedHandlers['load']) => {
+		onLoad: (_opts: unknown, fn: LoadHandler) => {
 			captured.load = fn
 		},
 	}
-	void setup(mockBuild as never)
+	await plugin.setup(mockBuild as never)
 	return captured
 }
 
@@ -36,17 +39,15 @@ describe('buzolaPlugin (Bun)', () => {
 	it('uses default plugin name and virtual module ID', async () => {
 		const { root, cleanup } = makeEmptyRoutesFixture()
 		try {
-			const plugin = await buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
+			const plugin = buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
 			expect(plugin.name).toBe('buzola')
 
-			const handlers = captureHandlers(plugin.setup)
+			const handlers = await runSetup(plugin)
 			expect(handlers.resolve!({ path: 'virtual:buzola/routes' })).toEqual({
 				path: 'virtual:buzola/routes',
 				namespace: 'buzola',
 			})
 			expect(handlers.resolve!({ path: 'virtual:buzola/other' })).toBeUndefined()
-
-			plugin.close()
 		} finally {
 			cleanup()
 		}
@@ -55,7 +56,7 @@ describe('buzolaPlugin (Bun)', () => {
 	it('uses named plugin and virtual module ID when name is set', async () => {
 		const { root, cleanup } = makeEmptyRoutesFixture()
 		try {
-			const plugin = await buzolaPlugin({
+			const plugin = buzolaPlugin({
 				root,
 				routesDir: 'routes',
 				output: 'buzola.gen.ts',
@@ -63,14 +64,12 @@ describe('buzolaPlugin (Bun)', () => {
 			})
 			expect(plugin.name).toBe('buzola:admin')
 
-			const handlers = captureHandlers(plugin.setup)
+			const handlers = await runSetup(plugin)
 			expect(handlers.resolve!({ path: 'virtual:buzola/admin/routes' })).toEqual({
 				path: 'virtual:buzola/admin/routes',
 				namespace: 'buzola',
 			})
 			expect(handlers.resolve!({ path: 'virtual:buzola/routes' })).toBeUndefined()
-
-			plugin.close()
 		} finally {
 			cleanup()
 		}
@@ -79,27 +78,28 @@ describe('buzolaPlugin (Bun)', () => {
 	it('onLoad returns a ts module re-exporting from the generated file', async () => {
 		const { root, cleanup } = makeEmptyRoutesFixture()
 		try {
-			const plugin = await buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
-			const handlers = captureHandlers(plugin.setup)
+			const plugin = buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
+			const handlers = await runSetup(plugin)
 			const result = handlers.load!({})
 			expect(result.loader).toBe('ts')
 			expect(result.contents).toContain('export { routes, pageRegistry }')
 			expect(result.contents).toContain(JSON.stringify(path.join(root, 'buzola.gen')))
-			plugin.close()
 		} finally {
 			cleanup()
 		}
 	})
 
-	it('writes buzola.gen.ts on startup when routes dir exists', async () => {
+	it('writes buzola.gen.ts during setup when routes dir exists', async () => {
 		const { root, cleanup } = makeEmptyRoutesFixture()
 		try {
 			const outputPath = path.join(root, 'buzola.gen.ts')
+			const plugin = buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
 			expect(fs.existsSync(outputPath)).toBe(false)
-			const plugin = await buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
+
+			await runSetup(plugin)
+
 			expect(fs.existsSync(outputPath)).toBe(true)
 			expect(fs.readFileSync(outputPath, 'utf-8')).toContain('pageRegistry')
-			plugin.close()
 		} finally {
 			cleanup()
 		}
@@ -109,9 +109,11 @@ describe('buzolaPlugin (Bun)', () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'buzola-bun-test-'))
 		try {
 			const outputPath = path.join(root, 'buzola.gen.ts')
-			const plugin = await buzolaPlugin({ root, routesDir: 'nonexistent', output: 'buzola.gen.ts' })
+			const plugin = buzolaPlugin({ root, routesDir: 'nonexistent', output: 'buzola.gen.ts' })
+
+			await runSetup(plugin)
+
 			expect(fs.existsSync(outputPath)).toBe(false)
-			plugin.close()
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true })
 		}
@@ -126,11 +128,9 @@ describe('buzolaPlugin (Bun)', () => {
 				`import { routes, pageRegistry } from 'virtual:buzola/routes'\nexport { routes, pageRegistry }\n`,
 			)
 
-			const plugin = await buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })
-
 			const result = await Bun.build({
 				entrypoints: [entryPath],
-				plugins: [plugin],
+				plugins: [buzolaPlugin({ root, routesDir: 'routes', output: 'buzola.gen.ts' })],
 				target: 'browser',
 				external: ['react', '@buzola/router'],
 			})
@@ -141,8 +141,6 @@ describe('buzolaPlugin (Bun)', () => {
 			const bundle = await result.outputs[0]!.text()
 			expect(bundle).toContain('pageRegistry')
 			expect(bundle).toContain('buildRouteTree')
-
-			plugin.close()
 		} finally {
 			cleanup()
 		}
