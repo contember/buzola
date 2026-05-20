@@ -81,103 +81,98 @@ export async function buildFileRouteTree(files: ScannedFile[], moduleLoader: Mod
 // ─── Phase 1: Extract flat route entries ────────────────────────────────────
 
 async function extractEntries(files: ScannedFile[], moduleLoader: ModuleLoader): Promise<RouteEntry[]> {
-	const entries: RouteEntry[] = []
+	const perFile = await Promise.all(files.map(file => extractFileEntries(file, moduleLoader)))
+	return perFile.flat()
+}
 
-	for (const file of files) {
-		const ext = path.extname(file.relativePath)
-		const withoutExt = file.relativePath.slice(0, -ext.length)
-		const parts = withoutExt.split(path.sep)
-		const fileName = parts.pop()!
-		const dirs = parts
-		const fileInfo = parseFileName(fileName)
+async function extractFileEntries(file: ScannedFile, moduleLoader: ModuleLoader): Promise<RouteEntry[]> {
+	const ext = path.extname(file.relativePath)
+	const withoutExt = file.relativePath.slice(0, -ext.length)
+	const parts = withoutExt.split(path.sep)
+	const fileName = parts.pop()!
+	const dirs = parts
+	const fileInfo = parseFileName(fileName)
 
-		// Compute fileScope (URL path from directory structure, skipping pathless groups)
-		// and pathlessGroups chain
-		let fileScope = ''
-		const pathlessGroups: string[] = []
-		let groupPath = ''
+	let fileScope = ''
+	const pathlessGroups: string[] = []
+	let groupPath = ''
 
-		for (const dir of dirs) {
-			groupPath = groupPath ? `${groupPath}/${dir}` : dir
-			const dirInfo = parseDirName(dir)
-			if (dirInfo.isPathlessGroup) {
-				pathlessGroups.push(groupPath)
-			} else {
-				fileScope = joinPath(fileScope, dirInfo.segment)
-			}
-		}
-		if (!fileScope) fileScope = '/'
-
-		if (fileInfo.isLayout) {
-			// Detect pathless group layout: immediate parent dir is a pathless group
-			const lastDir = dirs.length > 0 ? dirs[dirs.length - 1] : null
-			const isPathlessGroupLayout = lastDir != null && parseDirName(lastDir).isPathlessGroup
-
-			entries.push({
-				routePattern: fileScope,
-				treePosition: fileScope,
-				filePath: file.absolutePath,
-				exportName: 'default',
-				kind: 'layout',
-				params: [],
-				fileScope,
-				pathlessGroups,
-				pathlessGroupId: isPathlessGroupLayout ? groupPath : undefined,
-			})
-		} else if (fileInfo.isNotFound) {
-			const catchAllPattern = fileScope === '/' ? '/:__notFound+' : `${fileScope}/:__notFound+`
-			const pageId = dirs.length === 0 ? '404' : `${dirs.join('/')}/404`
-			entries.push({
-				routePattern: catchAllPattern,
-				treePosition: catchAllPattern,
-				filePath: file.absolutePath,
-				exportName: 'default',
-				kind: 'notFound',
-				pageId,
-				params: [{ name: '__notFound', optional: false, array: false }],
-				fileScope,
-				pathlessGroups,
-			})
+	for (const dir of dirs) {
+		groupPath = groupPath ? `${groupPath}/${dir}` : dir
+		const dirInfo = parseDirName(dir)
+		if (dirInfo.isPathlessGroup) {
+			pathlessGroups.push(groupPath)
 		} else {
-			const isIndex = fileInfo.isIndex
-			const basePath = isIndex ? fileScope : joinPath(fileScope, fileName)
-
-			const pages = await safeExtractPages(file, moduleLoader)
-
-			if (pages.length === 0) {
-				// No createPage() — plain component
-				entries.push({
-					routePattern: basePath,
-					treePosition: basePath,
-					filePath: file.absolutePath,
-					exportName: 'default',
-					kind: 'page',
-					params: [],
-					fileScope,
-					pathlessGroups,
-				})
-			} else {
-				for (const page of pages) {
-					const pageId = derivePageId(dirs, fileName, isIndex, page.exportName)
-					const defaultPattern = page.isDefault ? basePath : joinPath(basePath, page.exportName)
-					const routePattern = page.route ?? defaultPattern
-					entries.push({
-						routePattern,
-						treePosition: defaultPattern,
-						filePath: file.absolutePath,
-						exportName: page.exportName,
-						kind: 'page',
-						pageId,
-						params: page.params,
-						fileScope,
-						pathlessGroups,
-					})
-				}
-			}
+			fileScope = joinPath(fileScope, dirInfo.segment)
 		}
 	}
+	if (!fileScope) fileScope = '/'
 
-	return entries
+	if (fileInfo.isLayout) {
+		const lastDir = dirs.length > 0 ? dirs[dirs.length - 1] : null
+		const isPathlessGroupLayout = lastDir != null && parseDirName(lastDir).isPathlessGroup
+
+		return [{
+			routePattern: fileScope,
+			treePosition: fileScope,
+			filePath: file.absolutePath,
+			exportName: 'default',
+			kind: 'layout',
+			params: [],
+			fileScope,
+			pathlessGroups,
+			pathlessGroupId: isPathlessGroupLayout ? groupPath : undefined,
+		}]
+	}
+
+	if (fileInfo.isNotFound) {
+		const catchAllPattern = fileScope === '/' ? '/:__notFound+' : `${fileScope}/:__notFound+`
+		const pageId = dirs.length === 0 ? '404' : `${dirs.join('/')}/404`
+		return [{
+			routePattern: catchAllPattern,
+			treePosition: catchAllPattern,
+			filePath: file.absolutePath,
+			exportName: 'default',
+			kind: 'notFound',
+			pageId,
+			params: [{ name: '__notFound', optional: false, array: false }],
+			fileScope,
+			pathlessGroups,
+		}]
+	}
+
+	const isIndex = fileInfo.isIndex
+	const basePath = isIndex ? fileScope : joinPath(fileScope, fileName)
+	const pages = await safeExtractPages(file, moduleLoader)
+
+	if (pages.length === 0) {
+		return [{
+			routePattern: basePath,
+			treePosition: basePath,
+			filePath: file.absolutePath,
+			exportName: 'default',
+			kind: 'page',
+			params: [],
+			fileScope,
+			pathlessGroups,
+		}]
+	}
+
+	return pages.map(page => {
+		const pageId = derivePageId(dirs, fileName, isIndex, page.exportName)
+		const defaultPattern = page.isDefault ? basePath : joinPath(basePath, page.exportName)
+		return {
+			routePattern: page.route ?? defaultPattern,
+			treePosition: defaultPattern,
+			filePath: file.absolutePath,
+			exportName: page.exportName,
+			kind: 'page',
+			pageId,
+			params: page.params,
+			fileScope,
+			pathlessGroups,
+		}
+	})
 }
 
 // ─── Phase 2: Build tree from flat entries ──────────────────────────────────
