@@ -1,5 +1,13 @@
-import { type BasePluginOptions, buildVirtualSource, generate, type ResolvedOptions, resolveOptions, resolveVirtualModuleId } from '@buzola/codegen'
-import * as fs from 'node:fs'
+import {
+	type BasePluginOptions,
+	buildVirtualSource,
+	generate,
+	isRouteFile,
+	type ResolvedOptions,
+	resolveOptions,
+	resolveVirtualModuleId,
+} from '@buzola/codegen'
+import * as path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
 
 export interface BuzolaPluginOptions extends BasePluginOptions {}
@@ -31,7 +39,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		enforce: 'pre',
 
 		async configResolved(config) {
-			baseOptions = await resolveOptions({ root: config.root, ...options })
+			baseOptions = await resolveOptions({ ...options, root: config.root })
 			virtualSource = buildVirtualSource(baseOptions.outputPath)
 		},
 
@@ -40,10 +48,8 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		async buildStart() {
-			if (!fs.existsSync(baseOptions.routesDir)) return
-
 			if (server) {
-				await generate({ ...baseOptions, moduleLoader: (p) => server!.ssrLoadModule(p) })
+				await generate({ ...baseOptions, optional: true, moduleLoader: (p) => server!.ssrLoadModule(p) })
 			} else {
 				const { createServer } = await import('vite')
 				const tempServer = await createServer({
@@ -53,7 +59,7 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 					optimizeDeps: { noDiscovery: true },
 				})
 				try {
-					await generate({ ...baseOptions, moduleLoader: (p) => tempServer.ssrLoadModule(p) })
+					await generate({ ...baseOptions, optional: true, moduleLoader: (p) => tempServer.ssrLoadModule(p) })
 				} finally {
 					await tempServer.close()
 				}
@@ -73,15 +79,11 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		},
 
 		async handleHotUpdate({ file }) {
-			if (!file.startsWith(baseOptions.routesDir) || !server) return
+			if (!server || !file.startsWith(baseOptions.routesDir) || !isRouteFile(path.basename(file))) return
 
 			const changed = await generate({ ...baseOptions, moduleLoader: (p) => server!.ssrLoadModule(p) })
 			if (!changed) return
 
-			// Invalidate the virtual module so Vite re-evaluates it.
-			// Vite propagates the update through the import chain — if the app
-			// supports HMR for the route tree, no full-page reload is needed.
-			// If not, Vite falls back to full-reload automatically.
 			const mod = server.moduleGraph.getModuleById(resolvedVirtualId)
 			if (mod) {
 				server.moduleGraph.invalidateModule(mod)
