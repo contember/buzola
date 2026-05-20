@@ -1,43 +1,22 @@
-import { type BasePluginOptions, buildVirtualSource, generate, resolveOptions, resolveVirtualModuleId } from '@buzola/codegen'
+import {
+	type BasePluginOptions,
+	buildVirtualSource,
+	BUZOLA_NAMESPACE,
+	generate,
+	resolveOptions,
+	resolveVirtualModuleId,
+	VIRTUAL_ID_PATTERN,
+} from '@buzola/codegen'
 import type { BunPlugin } from 'bun'
-import * as fs from 'node:fs'
 
-export interface BuzolaPluginOptions extends BasePluginOptions {
-	/**
-	 * Project root used to resolve relative paths and locate `buzola.config.*`.
-	 * Defaults to `process.cwd()`.
-	 */
-	root?: string
-}
+export interface BuzolaPluginOptions extends BasePluginOptions {}
 
 /**
- * Bun plugin for Buzola page-centric routing.
+ * Bun plugin for Buzola page-centric routing. Scans the routes directory,
+ * generates `buzola.gen.ts`, and exposes the `virtual:buzola/routes` module.
  *
- * Scans the routes directory for page files using `createPage()`,
- * generates `buzola.gen.ts` with the route tree, page registry,
- * and `BuzolaPageMap` type augmentation, and exposes a
- * `virtual:buzola/routes` virtual module that re-exports
- * `routes` and `pageRegistry` from the generated file.
- *
- * Options can also be provided via `buzola.config.ts` in the project root.
- * Plugin options take precedence over the config file.
- *
- * Usage with `Bun.build`:
- *
- * ```ts
- * import { buzolaPlugin } from '@buzola/bun-plugin'
- *
- * await Bun.build({
- *   entrypoints: ['./index.html'],
- *   outdir: './dist',
- *   target: 'browser',
- *   plugins: [buzolaPlugin()],
- * })
- * ```
- *
- * For live regeneration during development, run your build script under
- * `bun --watch` — `setup()` runs on every build, so changes to route files
- * are picked up automatically on the next build invocation.
+ * Options can also be provided via `buzola.config.ts` in the project root;
+ * plugin options take precedence. See `examples/bun` for a `Bun.build` setup.
  */
 export function buzolaPlugin(options: BuzolaPluginOptions = {}): BunPlugin {
 	const { pluginName, id: virtualId } = resolveVirtualModuleId(options.name)
@@ -46,17 +25,15 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): BunPlugin {
 		name: pluginName,
 		async setup(build) {
 			const generateOptions = await resolveOptions(options)
-			if (fs.existsSync(generateOptions.routesDir)) {
-				await generate(generateOptions)
-			}
+			await generate({ ...generateOptions, optional: true })
 			const virtualSource = buildVirtualSource(generateOptions.outputPath)
 
-			build.onResolve({ filter: /^virtual:buzola\// }, args => {
+			build.onResolve({ filter: VIRTUAL_ID_PATTERN }, args => {
 				if (args.path !== virtualId) return
-				return { path: args.path, namespace: 'buzola' }
+				return { path: args.path, namespace: BUZOLA_NAMESPACE }
 			})
 
-			build.onLoad({ filter: /.*/, namespace: 'buzola' }, () => ({
+			build.onLoad({ filter: /.*/, namespace: BUZOLA_NAMESPACE }, () => ({
 				contents: virtualSource,
 				loader: 'ts',
 			}))
