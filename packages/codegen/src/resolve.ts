@@ -3,8 +3,13 @@ import type { BuzolaConfig } from './config.js'
 import { loadConfig } from './config.js'
 import type { GenerateOptions } from './generate.js'
 
+export interface ResolveOptionsInput extends BuzolaConfig {
+	/** Project root used to resolve relative paths and locate `buzola.config.*`. Defaults to `process.cwd()`. */
+	root?: string
+}
+
 /** Shared base for bundler-plugin option types. */
-export interface BasePluginOptions extends BuzolaConfig {
+export interface BasePluginOptions extends ResolveOptionsInput {
 	/**
 	 * Unique name for this plugin instance. Required when registering multiple
 	 * entrypoints in the same bundler config. Affects the plugin name
@@ -14,11 +19,6 @@ export interface BasePluginOptions extends BuzolaConfig {
 	 * `virtual:buzola/routes` as the virtual module ID.
 	 */
 	name?: string
-}
-
-export interface ResolveOptionsInput extends BuzolaConfig {
-	/** Project root used to resolve relative paths and locate `buzola.config.*`. Defaults to `process.cwd()`. */
-	root?: string
 }
 
 export interface ResolvedOptions extends GenerateOptions {
@@ -40,6 +40,13 @@ export async function resolveOptions(input: ResolveOptionsInput = {}): Promise<R
 	}
 }
 
+/** Namespace owned by every Buzola plugin instance. */
+export const BUZOLA_NAMESPACE = 'buzola'
+/** Prefix shared by every Buzola virtual module ID. */
+export const VIRTUAL_PREFIX = 'virtual:buzola/'
+/** Regex matching every Buzola virtual module ID, suitable for bundler `filter` options. */
+export const VIRTUAL_ID_PATTERN = /^virtual:buzola\//
+
 export interface VirtualModuleId {
 	/** Plugin name (e.g. `buzola` or `buzola:admin`). */
 	pluginName: string
@@ -53,8 +60,8 @@ export interface VirtualModuleId {
  */
 export function resolveVirtualModuleId(name: string | undefined): VirtualModuleId {
 	return {
-		pluginName: name ? `buzola:${name}` : 'buzola',
-		id: name ? `virtual:buzola/${name}/routes` : 'virtual:buzola/routes',
+		pluginName: name ? `${BUZOLA_NAMESPACE}:${name}` : BUZOLA_NAMESPACE,
+		id: name ? `${VIRTUAL_PREFIX}${name}/routes` : `${VIRTUAL_PREFIX}routes`,
 	}
 }
 
