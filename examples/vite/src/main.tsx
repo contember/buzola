@@ -1,5 +1,8 @@
+import { BuzolaProvider } from '@buzola/router'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './app.js'
+import { pageRegistry, routes } from 'virtual:buzola/routes'
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root')!).render(
+	<BuzolaProvider routes={routes} pageRegistry={pageRegistry} />,
+)
