@@ -14,7 +14,8 @@ Bun monorepo:
 - `packages/codegen` — Framework-agnostic file-based route scanning and type generation (`@buzola/codegen`). Ships the `buzola` CLI.
 - `packages/vite-plugin` — Vite adapter (`@buzola/vite-plugin`) — thin wrapper around `@buzola/codegen`
 - `packages/bun-plugin` — Bun adapter (`@buzola/bun-plugin`) — thin wrapper around `@buzola/codegen`
-- `playground` — Demo app using the framework
+- `examples/vite` — Demo app using the Vite plugin
+- `examples/bun` — Demo app using the Bun plugin
 
 ## Common Commands
 
@@ -38,8 +39,9 @@ bun test packages/codegen
 # Run a single test file
 bun test packages/buzola/src/__tests__/router.test.ts
 
-# Playground dev server
-cd playground && bun run dev
+# Example dev servers
+cd examples/vite && bun run dev   # Vite-based example
+cd examples/bun && bun run dev    # Bun-based example
 ```
 
 ## Architecture

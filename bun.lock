@@ -10,6 +10,39 @@
         "typescript": "^5.9.3",
       },
     },
+    "examples/bun": {
+      "name": "buzola-example-bun",
+      "version": "0.0.0",
+      "dependencies": {
+        "@buzola/bun-plugin": "workspace:*",
+        "@buzola/router": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "typescript": "^5.7.0",
+      },
+    },
+    "examples/vite": {
+      "name": "buzola-example-vite",
+      "version": "0.0.0",
+      "dependencies": {
+        "@buzola/router": "workspace:*",
+        "@buzola/vite-plugin": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^4.0.0",
+        "typescript": "^5.7.0",
+        "vite": "^6.0.0",
+      },
+    },
     "packages/bun-plugin": {
       "name": "@buzola/bun-plugin",
       "version": "0.0.3",
@@ -64,23 +97,6 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/node": "^25.3.3",
-        "typescript": "^5.7.0",
-        "vite": "^6.0.0",
-      },
-    },
-    "playground": {
-      "name": "buzola-playground",
-      "version": "0.0.0",
-      "dependencies": {
-        "@buzola/router": "workspace:*",
-        "@buzola/vite-plugin": "workspace:*",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-      },
-      "devDependencies": {
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
-        "@vitejs/plugin-react": "^4.0.0",
         "typescript": "^5.7.0",
         "vite": "^6.0.0",
       },
@@ -331,7 +347,9 @@
 
     "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
-    "buzola-playground": ["buzola-playground@workspace:playground"],
+    "buzola-example-bun": ["buzola-example-bun@workspace:examples/bun"],
+
+    "buzola-example-vite": ["buzola-example-vite@workspace:examples/vite"],
 
     "caniuse-lite": ["caniuse-lite@1.0.30001775", "", {}, "sha512-s3Qv7Lht9zbVKE9XoTyRG6wVDCKdtOFIjBGg3+Yhn6JaytuNKPIjBMTMIY1AnOH3seL5mvF+x33oGAyK3hVt3A=="],
 
