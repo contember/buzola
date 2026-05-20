@@ -10,15 +10,13 @@ if (!await indexHtml.exists()) {
 
 const server = Bun.serve({
 	port: Number(process.env.PORT ?? 3174),
-	async fetch(req) {
+	fetch(req) {
 		const url = new URL(req.url)
 		const filePath = url.pathname === '/' ? '/index.html' : url.pathname
-		const candidate = Bun.file(path.join(dist, filePath))
-		if (await candidate.exists()) return new Response(candidate)
-		// SPA fallback — unknown paths without an extension fall back to index.html
-		// so the client-side router can resolve them.
+		// Extensionless paths fall back to index.html so the client router can resolve them;
+		// everything else hits a static file (Bun.serve returns 404 if missing).
 		if (!path.extname(filePath)) return new Response(indexHtml)
-		return new Response('Not Found', { status: 404 })
+		return new Response(Bun.file(path.join(dist, filePath)))
 	},
 })
 
