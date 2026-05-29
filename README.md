@@ -55,7 +55,7 @@ export default defineConfig({
 // buzola.preload.ts
 import { buzolaPlugin } from '@buzola/bun-plugin'
 
-Bun.plugin(await buzolaPlugin())
+Bun.plugin(buzolaPlugin())
 ```
 
 ### 2. Create your routes

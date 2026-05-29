@@ -6,6 +6,6 @@ export default createPage()
 	.render(() => (
 		<div>
 			<h1>Home</h1>
-			<p>Welcome to Buzola playground! This app demonstrates page-centric routing.</p>
+			<p>Welcome to the Buzola example! This app demonstrates page-centric routing.</p>
 		</div>
 	))
