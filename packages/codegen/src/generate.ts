@@ -13,6 +13,8 @@ export interface GenerateOptions {
 	persistentParams?: string[]
 	/** Custom module loader. Defaults to native `import()`. */
 	moduleLoader?: ModuleLoader
+	/** When true, return `false` instead of throwing if `routesDir` is missing. */
+	optional?: boolean
 }
 
 /**
@@ -29,9 +31,10 @@ export interface GenerateOptions {
  * @returns `true` if the output file was written (content changed), `false` otherwise.
  */
 export async function generate(options: GenerateOptions): Promise<boolean> {
-	const { routesDir, outputPath, persistentParams, moduleLoader = defaultModuleLoader } = options
+	const { routesDir, outputPath, persistentParams, moduleLoader = defaultModuleLoader, optional = false } = options
 
 	if (!fs.existsSync(routesDir)) {
+		if (optional) return false
 		throw new Error(`Routes directory does not exist: ${routesDir}`)
 	}
 

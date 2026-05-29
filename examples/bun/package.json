@@ -1,0 +1,24 @@
+{
+	"name": "buzola-example-bun",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun build.ts",
+		"build:watch": "bun --watch build.ts",
+		"start": "bun --hot server.ts",
+		"dev": "bun build.ts && bun --hot server.ts"
+	},
+	"dependencies": {
+		"@buzola/bun-plugin": "workspace:*",
+		"@buzola/router": "workspace:*",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.0.0",
+		"@types/react-dom": "^19.0.0",
+		"typescript": "^5.7.0"
+	}
+}

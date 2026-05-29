@@ -2,12 +2,11 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src",
-		"jsx": "react-jsx"
+		"rootDir": "./src"
 	},
 	"include": ["src"],
 	"references": [
-		{ "path": "../buzola" },
-		{ "path": "../codegen" }
+		{ "path": "../../packages/buzola" },
+		{ "path": "../../packages/vite-plugin" }
 	]
 }

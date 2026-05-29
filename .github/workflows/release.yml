@@ -50,7 +50,7 @@ jobs:
           node -e "
             const fs = require('fs');
             const version = '${{ steps.tag.outputs.version }}';
-            for (const p of ['packages/buzola/package.json', 'packages/vite-plugin/package.json']) {
+            for (const p of ['packages/buzola/package.json', 'packages/codegen/package.json', 'packages/vite-plugin/package.json', 'packages/bun-plugin/package.json']) {
               const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
               pkg.version = version;
               for (const [dep, val] of Object.entries(pkg.dependencies ?? {})) {
@@ -64,6 +64,14 @@ jobs:
         working-directory: packages/buzola
         run: npm publish --provenance --access public
 
+      - name: Publish @buzola/codegen
+        working-directory: packages/codegen
+        run: npm publish --provenance --access public
+
       - name: Publish @buzola/vite-plugin
         working-directory: packages/vite-plugin
+        run: npm publish --provenance --access public
+
+      - name: Publish @buzola/bun-plugin
+        working-directory: packages/bun-plugin
         run: npm publish --provenance --access public

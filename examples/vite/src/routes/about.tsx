@@ -2,10 +2,10 @@ import { createPage } from '@buzola/router'
 import React from 'react'
 
 export default createPage()
-	.route('/')
+	.route('/about')
 	.render(() => (
 		<div>
-			<h1>Home</h1>
-			<p>Welcome to Buzola playground! This app demonstrates page-centric routing.</p>
+			<h1>About</h1>
+			<p>Buzola is a modern SPA router built on the Navigation API.</p>
 		</div>
 	))
