@@ -167,6 +167,12 @@ export interface NavigateOptions {
 	 * Set to `false` to preserve current scroll position.
 	 */
 	resetScroll?: boolean
+	/**
+	 * Whether the browser moves focus after navigation.
+	 * Defaults to `manual` when only search/hash changes — so search boxes, filters and
+	 * pagination controls keep the caret — and to `after-transition` when the path changes.
+	 */
+	focusReset?: 'after-transition' | 'manual'
 }
 
 /**
@@ -189,7 +195,9 @@ export interface BuzolaNavigateEvent {
 	/** Whether this navigation should use View Transitions API. */
 	viewTransition?: boolean
 	/** Intercept the navigation and handle it client-side. */
-	intercept(options: { handler: () => Promise<void>; scroll?: 'after-transition' | 'manual' }): void
+	intercept(
+		options: { handler: () => Promise<void>; scroll?: 'after-transition' | 'manual'; focusReset?: 'after-transition' | 'manual' },
+	): void
 }
 
 /** Abstraction over the Navigation API for testability. */

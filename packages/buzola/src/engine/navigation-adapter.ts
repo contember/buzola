@@ -30,6 +30,7 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 				event.intercept({
 					handler: options.handler,
 					scroll: options.scroll,
+					focusReset: options.focusReset,
 				})
 			},
 		}
