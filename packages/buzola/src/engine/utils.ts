@@ -22,3 +22,14 @@ export function extractParamNames(pattern: string): string[] {
 	}
 	return names
 }
+
+/**
+ * Whether two URLs address the same page — i.e. only search/hash differ.
+ * Same-path navigations (filters, sorting, pagination, search) keep the page
+ * on screen and keep focus where it is; path changes do not.
+ */
+export function isSamePath(a: string | URL, b: string | URL): boolean {
+	const urlA = typeof a === 'string' ? new URL(a) : a
+	const urlB = typeof b === 'string' ? new URL(b) : b
+	return urlA.origin === urlB.origin && urlA.pathname === urlB.pathname
+}
