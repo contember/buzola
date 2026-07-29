@@ -3,7 +3,7 @@ import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
 import { Router } from '../engine/router.js'
-import type { RouteConfig } from '../engine/types.js'
+import type { BuzolaNavigateEvent, NavigationAdapter, RouteConfig } from '../engine/types.js'
 
 function dummyComponent() {
 	return null
@@ -274,5 +274,76 @@ describe('Router.preload', () => {
 
 		// Should not throw
 		router.preload('about')
+	})
+})
+
+describe('Router focus reset', () => {
+	function createCapturingRouter(initialURL: string) {
+		const routes = buildRouteTree([
+			{ path: '/list', component: dummyComponent },
+			{ path: '/about', component: dummyComponent },
+		])
+		const adapter = createMemoryNavigationAdapter({ initialURL })
+		const captured: ({ scroll?: string; focusReset?: string })[] = []
+		const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
+		const capturingAdapter: NavigationAdapter = {
+			...adapter,
+			addEventListener(type, listener) {
+				listeners.add(listener)
+			},
+			removeEventListener(type, listener) {
+				listeners.delete(listener)
+			},
+			navigate(url) {
+				for (const listener of listeners) {
+					listener({
+						destination: { url: new URL(url, initialURL).href },
+						canIntercept: true,
+						navigationType: 'push',
+						userInitiated: false,
+						intercept(options) {
+							captured.push({ scroll: options.scroll, focusReset: options.focusReset })
+							void options.handler()
+						},
+					})
+				}
+			},
+		}
+		const router = new Router({ routes, adapter: capturingAdapter })
+		router.start()
+		return { router, captured }
+	}
+
+	it('keeps focus when only the query changes', () => {
+		const { router, captured } = createCapturingRouter('http://localhost/list')
+
+		router.navigate('/list?search=foo')
+
+		expect(captured.at(-1)?.focusReset).toBe('manual')
+	})
+
+	it('resets focus when the path changes', () => {
+		const { router, captured } = createCapturingRouter('http://localhost/list')
+
+		router.navigate('/about')
+
+		expect(captured.at(-1)?.focusReset).toBe('after-transition')
+	})
+
+	it('honours an explicit focusReset option', () => {
+		const { router, captured } = createCapturingRouter('http://localhost/list')
+
+		router.navigate('/about', { focusReset: 'manual' })
+
+		expect(captured.at(-1)?.focusReset).toBe('manual')
+	})
+
+	it('applies the explicit focusReset only to the navigation it was passed with', () => {
+		const { router, captured } = createCapturingRouter('http://localhost/list')
+
+		router.navigate('/about', { focusReset: 'manual' })
+		router.navigate('/list')
+
+		expect(captured.at(-1)?.focusReset).toBe('after-transition')
 	})
 })

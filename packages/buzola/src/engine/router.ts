@@ -1,7 +1,7 @@
 import { LoaderCache } from './loader-cache.js'
 import { matchRoutes } from './matcher.js'
 import type { BlockerFn, NavigateOptions, NavigationAdapter, RouterState, RouteTree } from './types.js'
-import { extractParamNames, parseParamSegment } from './utils.js'
+import { extractParamNames, isSamePath, parseParamSegment } from './utils.js'
 
 /**
  * Thrown when a route guard prevents navigation.
@@ -65,6 +65,7 @@ export class Router {
 	private stopFn: (() => void) | undefined
 	private blockers = new Set<BlockerFn>()
 	private pendingScrollBehavior: 'after-transition' | 'manual' = 'after-transition'
+	private pendingFocusReset: 'after-transition' | 'manual' | undefined
 	private readonly _loaderCache: LoaderCache | undefined
 
 	constructor(options: RouterOptions) {
@@ -145,9 +146,15 @@ export class Router {
 			const useViewTransition = event.viewTransition || this.viewTransitions
 			const scrollBehavior = this.pendingScrollBehavior
 			this.pendingScrollBehavior = 'after-transition'
+			// Query-only navigations stay on the same page — keep focus where the user left it
+			// (search boxes, filters, pagination). Path changes keep the browser's focus reset.
+			const focusReset = this.pendingFocusReset
+				?? (isSamePath(this.state.location, url) ? 'manual' : 'after-transition')
+			this.pendingFocusReset = undefined
 
 			event.intercept({
 				scroll: scrollBehavior,
+				focusReset,
 				handler: async () => {
 					// Check blockers before setting pending state
 					for (const blocker of this.blockers) {
@@ -205,6 +212,9 @@ export class Router {
 	navigate(to: string, options?: NavigateOptions): void {
 		if (options?.resetScroll === false) {
 			this.pendingScrollBehavior = 'manual'
+		}
+		if (options?.focusReset) {
+			this.pendingFocusReset = options.focusReset
 		}
 		this.adapter.navigate(this._basePath + to, options)
 	}
