@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, mock, spyOn } from 'bun:test'
 import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
@@ -345,5 +345,38 @@ describe('Router focus reset', () => {
 		router.navigate('/list')
 
 		expect(captured.at(-1)?.focusReset).toBe('after-transition')
+	})
+
+	it('resets focus when the hash changes, so fragment links reach their target', () => {
+		const { router, captured } = createCapturingRouter('http://localhost/list')
+
+		router.navigate('/list#details')
+
+		expect(captured.at(-1)?.focusReset).toBe('after-transition')
+	})
+
+	it('keeps focus when the query changes but the hash stays put', () => {
+		const { router, captured } = createCapturingRouter('http://localhost/list#details')
+
+		router.navigate('/list?search=foo#details')
+
+		expect(captured.at(-1)?.focusReset).toBe('manual')
+	})
+
+	it('does not leak an explicit focusReset past a navigation that was never intercepted', () => {
+		const warn = spyOn(console, 'warn').mockImplementation(() => {})
+		try {
+			const { router, captured } = createCapturingRouter('http://localhost/list')
+
+			// No route matches — the router bails out before intercepting
+			router.navigate('/unmatched', { focusReset: 'manual' })
+			expect(captured).toHaveLength(0)
+
+			router.navigate('/about')
+
+			expect(captured.at(-1)?.focusReset).toBe('after-transition')
+		} finally {
+			warn.mockRestore()
+		}
 	})
 })

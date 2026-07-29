@@ -132,6 +132,13 @@ export class Router {
 	 */
 	start(): () => void {
 		const handler = (event: import('./types.js').BuzolaNavigateEvent) => {
+			// Consume the pending options before any early return — they belong to the
+			// navigation that armed them and must not leak into the next one.
+			const scrollBehavior = this.pendingScrollBehavior
+			const explicitFocusReset = this.pendingFocusReset
+			this.pendingScrollBehavior = 'after-transition'
+			this.pendingFocusReset = undefined
+
 			if (!event.canIntercept) return
 
 			const url = new URL(event.destination.url)
@@ -144,13 +151,11 @@ export class Router {
 
 			const currentNavId = ++this.navigationId
 			const useViewTransition = event.viewTransition || this.viewTransitions
-			const scrollBehavior = this.pendingScrollBehavior
-			this.pendingScrollBehavior = 'after-transition'
 			// Query-only navigations stay on the same page — keep focus where the user left it
-			// (search boxes, filters, pagination). Path changes keep the browser's focus reset.
-			const focusReset = this.pendingFocusReset
-				?? (isSamePath(this.state.location, url) ? 'manual' : 'after-transition')
-			this.pendingFocusReset = undefined
+			// (search boxes, filters, pagination). Path changes keep the browser's focus reset,
+			// and so do fragment changes, which must move focus to the targeted section.
+			const focusReset = explicitFocusReset
+				?? (isSamePath(this.state.location, url) && this.state.location.hash === url.hash ? 'manual' : 'after-transition')
 
 			event.intercept({
 				scroll: scrollBehavior,

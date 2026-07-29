@@ -169,8 +169,9 @@ export interface NavigateOptions {
 	resetScroll?: boolean
 	/**
 	 * Whether the browser moves focus after navigation.
-	 * Defaults to `manual` when only search/hash changes — so search boxes, filters and
-	 * pagination controls keep the caret — and to `after-transition` when the path changes.
+	 * Defaults to `manual` when only the search string changes — so search boxes, filters and
+	 * pagination controls keep the caret — and to `after-transition` when the path or the hash
+	 * changes, so fragment links move focus to the section they target.
 	 */
 	focusReset?: 'after-transition' | 'manual'
 }
