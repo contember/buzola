@@ -26,7 +26,10 @@ export function extractParamNames(pattern: string): string[] {
 /**
  * Whether two URLs address the same page — i.e. only search/hash differ.
  * Same-path navigations (filters, sorting, pagination, search) keep the page
- * on screen and keep focus where it is; path changes do not.
+ * on screen and keep its loader data as stale; path changes do not.
+ *
+ * Note this ignores the hash. Callers that care about fragment changes — focus
+ * handling, for one — have to compare `hash` themselves.
  */
 export function isSamePath(a: string | URL, b: string | URL): boolean {
 	const urlA = typeof a === 'string' ? new URL(a) : a
