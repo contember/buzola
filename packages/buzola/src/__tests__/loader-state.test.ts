@@ -233,6 +233,67 @@ describe('PageLoaderState', () => {
 			}
 		})
 
+		it('keeps data as stale when only the query changes — no suspend', () => {
+			const cache = new LoaderCache(10)
+			const state = createState()
+
+			resolveCtx(state, { url: 'http://localhost/list', cacheKey: 'list:0', loaderCache: cache })
+			state.commitResult('page-1')
+
+			// Same path, different query (filter/sort/search/pagination)
+			const instruction = resolveCtx(state, {
+				url: 'http://localhost/list?search=foo',
+				cacheKey: 'list?search=foo:0',
+				loaderCache: cache,
+			})
+
+			expect(instruction).toEqual({ action: 'render', data: 'page-1', isLoading: true })
+		})
+
+		it('keeps data as stale on query change without a loader cache', () => {
+			const state = createState()
+
+			resolveCtx(state, { url: 'http://localhost/list', cacheKey: 'list:0' })
+			state.commitResult('page-1')
+
+			const instruction = resolveCtx(state, { url: 'http://localhost/list?page=2', cacheKey: 'list?page=2:0' })
+
+			expect(instruction).toEqual({ action: 'render', data: 'page-1', isLoading: true })
+		})
+
+		it('caches carried-over data under the href it was loaded for', () => {
+			const cache = new LoaderCache(10)
+			const state = createState()
+
+			resolveCtx(state, { url: 'http://localhost/list', cacheKey: 'list:0', loaderCache: cache })
+			state.commitResult('page-1')
+
+			// Query change carries 'page-1' over as stale, still belonging to /list
+			resolveCtx(state, { url: 'http://localhost/list?page=2', cacheKey: 'list?page=2:0', loaderCache: cache })
+			// Leaving before the background load settles must not cache 'page-1' under ?page=2
+			state.dispose(cache)
+
+			const instruction = resolveCtx(state, { url: 'http://localhost/list?page=2', cacheKey: 'list?page=2:0', loaderCache: cache })
+			expect(instruction.action).toBe('suspend')
+
+			state.commitResult('page-2')
+			state.dispose(cache)
+
+			const restored = resolveCtx(state, { url: 'http://localhost/list', cacheKey: 'list:0', loaderCache: cache })
+			expect(restored).toEqual({ action: 'render', data: 'page-1', isLoading: true })
+		})
+
+		it('drops data when the path changes', () => {
+			const state = createState()
+
+			resolveCtx(state, { url: 'http://localhost/project/a', cacheKey: 'a:0' })
+			state.commitResult('project-a')
+
+			const instruction = resolveCtx(state, { url: 'http://localhost/project/b', cacheKey: 'b:0' })
+
+			expect(instruction.action).toBe('suspend')
+		})
+
 		it('returns suspend when no stale cache available on URL change', () => {
 			const cache = new LoaderCache(10)
 			const state = createState()

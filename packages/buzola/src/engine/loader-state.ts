@@ -1,4 +1,5 @@
 import type { LoaderCache } from './loader-cache.js'
+import { isSamePath } from './utils.js'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ export class PageLoaderState {
 	private activeCacheKey: string | null = null
 	private activePromise: Promise<unknown> | null = null
 	private activeResolvedData: unknown
+	/** URL the currently held data was loaded for — data is cached under this href, not the active one. */
+	private resolvedUrlHref: string | null = null
 	private hasResolved = false
 	private pendingBackgroundKey: string | null = null
 	private readonly id: number
@@ -103,12 +106,14 @@ export class PageLoaderState {
 	/** Commit data after use() resolves (suspend case) */
 	commitResult(data: unknown): void {
 		this.activeResolvedData = data
+		this.resolvedUrlHref = this.activeUrlHref
 		this.hasResolved = true
 	}
 
 	/** Commit background SWR success — update data and clear pending flag */
 	commitBackgroundResult(data: unknown): void {
 		this.activeResolvedData = data
+		this.resolvedUrlHref = this.activeUrlHref
 		this.pendingBackgroundKey = null
 	}
 
@@ -120,13 +125,14 @@ export class PageLoaderState {
 
 	/** Save state to stale cache and reset (called on unmount) */
 	dispose(loaderCache: LoaderCache | undefined): void {
-		if (loaderCache && this.hasResolved && this.activeResolvedData !== undefined && this.activeUrlHref) {
-			this.saveToStaleCache(loaderCache, this.activeUrlHref, this.activeResolvedData)
+		if (loaderCache && this.hasResolved && this.activeResolvedData !== undefined && this.resolvedUrlHref) {
+			this.saveToStaleCache(loaderCache, this.resolvedUrlHref, this.activeResolvedData)
 		}
 		this.activeUrlHref = null
 		this.activeCacheKey = null
 		this.activePromise = null
 		this.activeResolvedData = undefined
+		this.resolvedUrlHref = null
 		this.hasResolved = false
 		this.pendingBackgroundKey = null
 	}
@@ -135,25 +141,31 @@ export class PageLoaderState {
 
 	private handleUrlChange(currentUrlHref: string, loaderCache: LoaderCache | undefined): void {
 		if (this.activeUrlHref !== null && this.activeUrlHref !== currentUrlHref) {
-			// URL changed — save old data to stale cache
-			if (loaderCache && this.hasResolved && this.activeResolvedData !== undefined) {
-				this.saveToStaleCache(loaderCache, this.activeUrlHref, this.activeResolvedData)
+			// URL changed — save the held data to stale cache under the href it was loaded for
+			if (loaderCache && this.hasResolved && this.activeResolvedData !== undefined && this.resolvedUrlHref) {
+				this.saveToStaleCache(loaderCache, this.resolvedUrlHref, this.activeResolvedData)
 			}
 			// Try to restore from stale cache for new URL
 			const cached = loaderCache && this.restoreFromStaleCache(loaderCache, currentUrlHref)
 			if (cached?.hit) {
 				this.activeResolvedData = cached.value
+				this.resolvedUrlHref = currentUrlHref
 				this.hasResolved = true
-			} else {
+			} else if (!isSamePath(this.activeUrlHref, currentUrlHref)) {
+				// Different path — the held data describes another page, drop it and suspend
 				this.hasResolved = false
 				this.activeResolvedData = undefined
+				this.resolvedUrlHref = null
 			}
+			// Same path, only search/hash changed (filters, sorting, pagination, search):
+			// keep the data as stale so resolve() serves it while the new query loads.
 			this.pendingBackgroundKey = null
 		} else if (this.activeUrlHref === null && loaderCache) {
 			// Remount — try to restore from stale cache
 			const cached = this.restoreFromStaleCache(loaderCache, currentUrlHref)
 			if (cached.hit) {
 				this.activeResolvedData = cached.value
+				this.resolvedUrlHref = currentUrlHref
 				this.hasResolved = true
 			}
 		}
