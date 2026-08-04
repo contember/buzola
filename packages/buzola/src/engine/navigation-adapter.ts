@@ -42,7 +42,12 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 
 	return {
 		getCurrentURL() {
-			return new URL(nav.currentEntry!.url!)
+			// `currentEntry` is null on a document that is not fully active or still on
+			// the initial about:blank; Safari reports an empty `url` in that situation
+			// instead. `||` catches both, and `location.href` is the URL the entry would
+			// have reported. This runs in the Router constructor, so a throw is a blank
+			// page rather than a degraded route.
+			return new URL(nav.currentEntry?.url || window.location.href)
 		},
 		navigate(url, options) {
 			if (options?.viewTransition) {
