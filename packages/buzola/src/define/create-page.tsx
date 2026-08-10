@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { type ComponentType, use, useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { PageLoaderState } from '../engine/loader-state.js'
+import type { Router } from '../engine/router.js'
 import { isOptionalSchema, type ParamLiteral, resolveParamLiteral, validateSchema } from '../engine/schema.js'
 import type { EffectivePageParams, RegisteredPage, RouteComponent, StandardSchema } from '../engine/types.js'
 import { extractParamNames } from '../engine/utils.js'
@@ -154,6 +155,21 @@ function combineLoaders(loaders: LoaderFn[]): LoaderFn | undefined {
 	}
 }
 
+/**
+ * Follow a loader redirect, unless it points at the URL the page is already on —
+ * that navigation re-runs the loader, which returns the same redirect, forever.
+ */
+function followRedirect(router: Router | null, target: BuzolaRedirect): void {
+	if (!router) return
+	const current = router.getState().location
+	const href = new URL(router.buildPagePath(target.pageId, target.params), current).href
+	if (href === current.href) {
+		console.warn(`[buzola] Loader redirected to "${target.pageId}", which is the page it is already on. Ignoring to avoid a redirect loop.`)
+		return
+	}
+	router.navigateToPage(target.pageId, target.params, { replace: true })
+}
+
 // ─── Component factory ──────────────────────────────────────────────────────
 
 function createPageComponent<TParams>(
@@ -248,7 +264,7 @@ function createPageComponent<TParams>(
 				onBackgroundSettled: (outcome) => {
 					if (outcome.ok) {
 						if (outcome.result instanceof BuzolaRedirect) {
-							router?.navigateToPage(outcome.result.pageId, outcome.result.params, { replace: true })
+							followRedirect(router, outcome.result)
 							return
 						}
 						loaderState.commitBackgroundResult(outcome.result)
@@ -265,7 +281,7 @@ function createPageComponent<TParams>(
 			} else {
 				const result = use(instruction.promise)
 				if (result instanceof BuzolaRedirect) {
-					router?.navigateToPage(result.pageId, result.params, { replace: true })
+					followRedirect(router, result)
 					shouldRedirect = true
 				} else {
 					data = result

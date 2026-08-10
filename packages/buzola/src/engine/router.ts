@@ -182,6 +182,7 @@ export class Router {
 
 					// Perform the DOM update
 					const doUpdate = () => {
+						const previousHref = this.state.location.href
 						this.setState({
 							location: url,
 							matches,
@@ -189,6 +190,12 @@ export class Router {
 							pendingLocation: undefined,
 							navigationState: this.adapter.getState(),
 						})
+						// Going to the URL we are already on is still a navigation — a browser
+						// re-requests the document for it. Loader data is keyed by href, so it
+						// would silently keep serving stale data without an explicit invalidation.
+						if (previousHref === url.href) {
+							this.invalidateAll()
+						}
 					}
 
 					if (useViewTransition && typeof document !== 'undefined' && 'startViewTransition' in document) {
