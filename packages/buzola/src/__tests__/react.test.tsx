@@ -2,6 +2,7 @@ import './setup-dom.js'
 import { act, cleanup, fireEvent, render, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import React from 'react'
+import { BuzolaRedirect, createPage } from '../define/create-page.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
 import { Router } from '../engine/router.js'
@@ -497,6 +498,121 @@ describe('useInvalidate', () => {
 
 		expect(invalidateSpy).toHaveBeenCalledTimes(1)
 		invalidateSpy.mockRestore()
+	})
+})
+
+// ─── Page loaders ────────────────────────────────────────────────────────────
+
+describe('Page loaders', () => {
+	/** A loader suspends on mount, so the first render has to be awaited inside act() to commit. */
+	async function renderRoutes(configs: RouteConfig[], url: string, pageRegistry?: Record<string, string>) {
+		const { router, adapter } = createTestRouter(configs, url, pageRegistry ? { pageRegistry } : undefined)
+		let container!: HTMLElement
+		await act(async () => {
+			container = render(
+				<BuzolaProvider router={router}>
+					<React.Suspense fallback={<div>loading</div>}>
+						<Outlet />
+					</React.Suspense>
+				</BuzolaProvider>,
+			).container
+		})
+		return { router, adapter, container }
+	}
+
+	function renderPage(page: { component: React.ComponentType }, url: string, pageRegistry?: Record<string, string>) {
+		return renderRoutes([{ path: new URL(url).pathname, component: page.component }], url, pageRegistry)
+	}
+
+	it('re-runs the loader when navigating to the URL the page is already on', async () => {
+		let loads = 0
+		const page = createPage()
+			.loader(async () => ({ n: ++loads }))
+			.render(({ data }) => <div>{`loads:${data.n}`}</div>)
+
+		const { router, container } = await renderPage(page, 'http://localhost/dashboard')
+		await flushNav()
+		expect(container.textContent).toBe('loads:1')
+
+		await act(async () => {
+			router.navigate('/dashboard')
+		})
+		await flushNav()
+
+		expect(container.textContent).toBe('loads:2')
+	})
+
+	it('serves the previous data while the same-URL reload is in flight', async () => {
+		let resolveSecond: ((value: { n: number }) => void) | undefined
+		let loads = 0
+		const page = createPage()
+			.loader(async () => {
+				loads++
+				if (loads === 1) return { n: 1 }
+				return new Promise<{ n: number }>(resolve => {
+					resolveSecond = resolve
+				})
+			})
+			.render(({ data }) => <div>{`loads:${data.n}`}</div>)
+
+		const { router, container } = await renderPage(page, 'http://localhost/dashboard')
+		await flushNav()
+
+		await act(async () => {
+			router.navigate('/dashboard')
+		})
+		await flushNav()
+
+		// No Suspense fallback — the stale render stays up until the reload lands
+		expect(container.textContent).toBe('loads:1')
+
+		await act(async () => {
+			resolveSecond?.({ n: 2 })
+		})
+		await flushNav()
+
+		expect(container.textContent).toBe('loads:2')
+	})
+
+	it('ignores a loader redirect that targets the page it is already on', async () => {
+		const warn = spyOn(console, 'warn').mockImplementation(() => {})
+		try {
+			let loads = 0
+			const page = createPage()
+				.loader(async () => {
+					loads++
+					return new BuzolaRedirect('dashboard')
+				})
+				.render(() => <div>never rendered</div>)
+
+			const { router } = await renderPage(page, 'http://localhost/dashboard', { dashboard: '/dashboard' })
+			await flushNav()
+
+			// Without the guard the refused navigation would re-run the loader forever
+			expect(loads).toBe(1)
+			expect(warn).toHaveBeenCalled()
+			expect(router.getState().location.pathname).toBe('/dashboard')
+		} finally {
+			warn.mockRestore()
+		}
+	})
+
+	it('still follows a loader redirect to a different page', async () => {
+		const page = createPage()
+			.loader(async () => new BuzolaRedirect('about'))
+			.render(() => <div>never rendered</div>)
+
+		const { router } = await renderRoutes(
+			[
+				{ path: '/dashboard', component: page.component },
+				{ path: '/about', component: About },
+			],
+			'http://localhost/dashboard',
+			{ about: '/about' },
+		)
+		await flushNav()
+
+		expect(router.getState().location.pathname).toBe('/about')
 	})
 })
 

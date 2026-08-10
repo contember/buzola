@@ -277,6 +277,46 @@ describe('Router.preload', () => {
 	})
 })
 
+describe('Router same-URL navigation', () => {
+	function createCountingRouter(initialURL: string) {
+		const { router } = createRouter([
+			{ path: '/', component: dummyComponent, isIndex: true },
+			{ path: '/list', component: dummyComponent },
+		], initialURL)
+
+		let invalidations = 0
+		router.onInvalidate(() => invalidations++)
+
+		return { router, count: () => invalidations }
+	}
+
+	it('invalidates loaders when navigating to the URL it is already on', () => {
+		const { router, count } = createCountingRouter('http://localhost/list')
+
+		router.navigate('/list')
+
+		expect(count()).toBe(1)
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('invalidates on a same-URL replace too', () => {
+		const { router, count } = createCountingRouter('http://localhost/list?q=1')
+
+		router.navigate('/list?q=1', { replace: true })
+
+		expect(count()).toBe(1)
+	})
+
+	it('does not invalidate when the URL changes — the href-keyed loader reloads on its own', () => {
+		const { router, count } = createCountingRouter('http://localhost/')
+
+		router.navigate('/list')
+		router.navigate('/list?q=1')
+
+		expect(count()).toBe(0)
+	})
+})
+
 describe('Router focus reset', () => {
 	function createCapturingRouter(initialURL: string) {
 		const routes = buildRouteTree([
