@@ -10,7 +10,7 @@ export type { CreateRouteNodeOptions } from './engine/route-tree.js'
 export { matchRoutes } from './engine/matcher.js'
 
 export { createBrowserNavigationAdapter, createMemoryNavigationAdapter } from './engine/navigation-adapter.js'
-export type { MemoryNavigationAdapterOptions } from './engine/navigation-adapter.js'
+export type { MemoryNavigationAdapter, MemoryNavigationAdapterOptions } from './engine/navigation-adapter.js'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type {

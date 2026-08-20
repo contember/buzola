@@ -63,6 +63,7 @@ export class Router {
 	private state: RouterState
 	private navigationId = 0
 	private stopFn: (() => void) | undefined
+	private releasedURL: string | undefined
 	private blockers = new Set<BlockerFn>()
 	private pendingScrollBehavior: 'after-transition' | 'manual' = 'after-transition'
 	private pendingFocusReset: 'after-transition' | 'manual' | undefined
@@ -139,6 +140,10 @@ export class Router {
 			this.pendingScrollBehavior = 'after-transition'
 			this.pendingFocusReset = undefined
 
+			if (this.releasedURL !== undefined && event.destination.url === this.releasedURL) {
+				this.releasedURL = undefined
+				return
+			}
 			if (!event.canIntercept) return
 
 			const url = new URL(event.destination.url)
@@ -215,6 +220,24 @@ export class Router {
 		this.stopFn = stop
 
 		return stop
+	}
+
+	/**
+	 * Hand one navigation to the browser instead of intercepting it, for a URL the SERVER owns —
+	 * an auth handoff, a file download, a server-rendered page that happens to share this origin.
+	 *
+	 * The Navigation API offers no way for a caller to mark a navigation un-interceptable:
+	 * `location.assign`, `location.href`, a link click and a form submit all raise the same event
+	 * with `canIntercept` true, so a router that matches the URL will swallow it. That is easy to hit
+	 * by accident, because a catch-all 404 route matches every path on the origin.
+	 *
+	 * The release is recorded BEFORE the navigation is requested and is keyed to the resolved URL, so
+	 * it cannot race the event or release some other navigation. Unlike `navigate`, the URL is passed
+	 * to the browser as given — no base path is prepended, because the target is outside the app.
+	 */
+	leaveApp(url: string): void {
+		this.releasedURL = new URL(url, this.adapter.getCurrentURL()).href
+		this.adapter.leaveApp(url)
 	}
 
 	/**

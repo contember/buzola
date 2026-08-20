@@ -195,6 +195,27 @@ createPage()
 | `useInvalidate()`          | Function to invalidate all loader caches                          |
 | `useNavigationState()`     | Custom state from Navigation API                                  |
 
+### Leaving the app
+
+A router built on the Navigation API sees every navigation on its origin, and a catch-all `_404`
+route matches all of them — including URLs the **server** owns, such as an auth handoff or a
+server-rendered page. Left alone, the router intercepts those and renders its own not-found page
+without a request ever reaching the server.
+
+The platform offers no way to mark a navigation un-interceptable: `location.assign`,
+`location.href`, a link click and a form submit all raise the same event. So say it explicitly:
+
+```ts
+const router = useRouter()
+
+// Hand this one to the browser: a real cross-document navigation, no interception.
+router.leaveApp('/api/auth/github/start')
+```
+
+The release is recorded before the navigation is requested and is keyed to the resolved URL, so it
+cannot race the event or release a different navigation. Unlike `navigate()`, the URL is passed to
+the browser as given — no base path is prepended, because the target is outside the app.
+
 ### Plugin Options
 
 Both `@buzola/vite-plugin` and `@buzola/bun-plugin` accept the same options:

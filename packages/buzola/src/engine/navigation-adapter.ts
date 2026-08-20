@@ -58,6 +58,11 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 				state: options?.state,
 			})
 		},
+		leaveApp(url) {
+			// Deliberately NOT nav.navigate(): this is the one navigation the router hands to the
+			// browser, so it must go through the plain Location API and stay cross-document.
+			window.location.assign(url)
+		},
 		back() {
 			nav.back()
 		},
@@ -99,14 +104,21 @@ interface MemoryEntry {
 /**
  * Create an in-memory NavigationAdapter for testing.
  */
+/** The memory adapter plus the record a test needs to see what was handed to the browser. */
+export interface MemoryNavigationAdapter extends NavigationAdapter {
+	/** URLs passed to `leaveApp`, in order. */
+	leftApp(): readonly string[]
+}
+
 export function createMemoryNavigationAdapter(
 	options: MemoryNavigationAdapterOptions = {},
-): NavigationAdapter {
+): MemoryNavigationAdapter {
 	const { initialURL = 'http://localhost/' } = options
 
 	const entries: MemoryEntry[] = [{ url: initialURL }]
 	let currentIndex = 0
 	const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
+	const left: string[] = []
 
 	function emitNavigateEvent(
 		url: string,
@@ -155,6 +167,14 @@ export function createMemoryNavigationAdapter(
 		getCurrentURL() {
 			return new URL(entries[currentIndex].url)
 		},
+		leaveApp(url) {
+			// A real browser would replace the document here. The memory adapter cannot, so it records
+			// the destination and still raises the event, which is what lets a test assert that the
+			// router declined to intercept it.
+			const resolved = new URL(url, entries[currentIndex].url).href
+			left.push(resolved)
+			emitNavigateEvent(resolved, 'push', () => {})
+		},
 		navigate(url, options) {
 			const resolved = new URL(url, entries[currentIndex].url).href
 			const type = options?.replace ? 'replace' : 'push'
@@ -192,6 +212,9 @@ export function createMemoryNavigationAdapter(
 		},
 		getState() {
 			return entries[currentIndex].state
+		},
+		leftApp() {
+			return left
 		},
 	}
 }
