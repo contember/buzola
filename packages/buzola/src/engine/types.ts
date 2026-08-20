@@ -207,6 +207,11 @@ export interface NavigationAdapter {
 	getCurrentURL(): URL
 	/** Navigate to a URL. */
 	navigate(url: string, options?: NavigateOptions): void
+	/**
+	 * Ask the browser for a real cross-document navigation, as-is.
+	 * The router pairs this with a release so its own listener does not intercept the result.
+	 */
+	leaveApp(url: string): void
 	/** Go back. */
 	back(): void
 	/** Go forward. */

@@ -420,3 +420,57 @@ describe('Router focus reset', () => {
 		}
 	})
 })
+
+describe('Router.leaveApp', () => {
+	// A catch-all 404 route matches every path on the origin, so without a release the router
+	// swallows the server's own URLs and renders "Not found" with no request ever sent.
+	// Shaped like a codegen'd tree: the catch-all is a child of the root layout, not its sibling.
+	const withCatchAll: RouteConfig[] = [
+		{
+			path: '/',
+			component: dummyComponent,
+			isLayout: true,
+			children: [
+				{ path: '/', component: dummyComponent, isIndex: true },
+				{ path: '/about', component: dummyComponent },
+				{ path: '/:__notFound+', component: dummyComponent },
+			],
+		},
+	]
+
+	it('hands the URL to the browser instead of intercepting it', () => {
+		const { router, adapter } = createRouter(withCatchAll)
+
+		router.leaveApp('/api/source/github/manifest/abc')
+
+		expect(adapter.leftApp()).toEqual(['http://localhost/api/source/github/manifest/abc'])
+		// The router did not take it: state still points at the page the user was on.
+		expect(router.getState().location.pathname).toBe('/')
+	})
+
+	it('would otherwise intercept that same URL', () => {
+		const { router } = createRouter(withCatchAll)
+
+		router.navigate('/api/source/github/manifest/abc')
+
+		expect(router.getState().location.pathname).toBe('/api/source/github/manifest/abc')
+	})
+
+	it('releases exactly one navigation, and only the one it named', () => {
+		const { router } = createRouter(withCatchAll)
+
+		router.leaveApp('/api/one')
+		router.navigate('/api/two')
+
+		expect(router.getState().location.pathname).toBe('/api/two')
+	})
+
+	it('releases a URL the router does have a route for', () => {
+		const { router, adapter } = createRouter(withCatchAll)
+
+		router.leaveApp('/about')
+
+		expect(adapter.leftApp()).toEqual(['http://localhost/about'])
+		expect(router.getState().location.pathname).toBe('/')
+	})
+})
