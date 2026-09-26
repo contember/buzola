@@ -63,6 +63,9 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 			// browser, so it must go through the plain Location API and stay cross-document.
 			window.location.assign(url)
 		},
+		reload() {
+			window.location.reload()
+		},
 		back() {
 			nav.back()
 		},
@@ -108,6 +111,8 @@ interface MemoryEntry {
 export interface MemoryNavigationAdapter extends NavigationAdapter {
 	/** URLs passed to `leaveApp`, in order. */
 	leftApp(): readonly string[]
+	/** How many reloads went through to the browser, i.e. were not intercepted. */
+	reloadCount(): number
 }
 
 export function createMemoryNavigationAdapter(
@@ -119,11 +124,12 @@ export function createMemoryNavigationAdapter(
 	let currentIndex = 0
 	const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
 	const left: string[] = []
+	let reloads = 0
 
 	function emitNavigateEvent(
 		url: string,
 		navigationType: BuzolaNavigateEvent['navigationType'],
-		commitNavigation: () => void,
+		commitNavigation: (intercepted: boolean) => void,
 		viewTransition?: boolean,
 	): void {
 		let intercepted = false
@@ -149,7 +155,7 @@ export function createMemoryNavigationAdapter(
 			// Run the handler and only commit navigation state on success.
 			void interceptHandler().then(
 				() => {
-					commitNavigation()
+					commitNavigation(true)
 				},
 				(error) => {
 					// Guard aborts are expected — rethrow unexpected errors
@@ -159,7 +165,7 @@ export function createMemoryNavigationAdapter(
 			)
 		} else {
 			// No interception — commit immediately
-			commitNavigation()
+			commitNavigation(false)
 		}
 	}
 
@@ -174,6 +180,12 @@ export function createMemoryNavigationAdapter(
 			const resolved = new URL(url, entries[currentIndex].url).href
 			left.push(resolved)
 			emitNavigateEvent(resolved, 'push', () => {})
+		},
+		reload() {
+			// An intercepted reload stays in the document; only one the router let through counts.
+			emitNavigateEvent(entries[currentIndex].url, 'reload', (intercepted) => {
+				if (!intercepted) reloads++
+			})
 		},
 		navigate(url, options) {
 			const resolved = new URL(url, entries[currentIndex].url).href
@@ -215,6 +227,9 @@ export function createMemoryNavigationAdapter(
 		},
 		leftApp() {
 			return left
+		},
+		reloadCount() {
+			return reloads
 		},
 	}
 }

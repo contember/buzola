@@ -115,10 +115,13 @@ export interface RouteNode {
 export interface TrieNode {
 	/** Static children — exact segment match via Map lookup (O(1)). */
 	staticChildren: Map<string, TrieNode>
-	/** Dynamic child — matches any single segment as a named param. */
-	dynamicChild?: { paramName: string; node: TrieNode }
-	/** Catch-all child — matches all remaining segments. */
-	catchAllChild?: { paramName: string; chain: RouteNode[] }
+	/**
+	 * Dynamic child: matches any single segment. It carries no param name, because routes sharing this
+	 * position may name it differently; each terminal names the values of its own route.
+	 */
+	dynamicChild?: TrieNode
+	/** Catch-all child: matches all remaining segments. */
+	catchAllChild?: TrieRoute
 	/** When defined, a route terminates at this trie node. */
 	route?: TrieRoute
 }
@@ -127,6 +130,8 @@ export interface TrieNode {
 export interface TrieRoute {
 	/** Match chain: array of RouteNode from root layout to leaf page. */
 	chain: RouteNode[]
+	/** This route's param names, one per dynamic segment in path order (a catch-all name last). */
+	paramNames: string[]
 }
 
 /** Opaque route tree built from RouteConfig[]. Passed to matchRoutes() and Router. */
@@ -212,6 +217,8 @@ export interface NavigationAdapter {
 	 * The router pairs this with a release so its own listener does not intercept the result.
 	 */
 	leaveApp(url: string): void
+	/** Reload the current document, as `location.reload()` does. */
+	reload(): void
 	/** Go back. */
 	back(): void
 	/** Go forward. */

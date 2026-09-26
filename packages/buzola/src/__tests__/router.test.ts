@@ -474,3 +474,47 @@ describe('Router.leaveApp', () => {
 		expect(router.getState().location.pathname).toBe('/')
 	})
 })
+
+describe('Router reload', () => {
+	const flush = () => new Promise(resolve => setTimeout(resolve, 0))
+
+	it('lets a reload through to the browser so it loads a fresh document', () => {
+		const { adapter } = createRouter([{ path: '/list', component: dummyComponent }], 'http://localhost/list')
+
+		adapter.reload()
+
+		expect(adapter.reloadCount()).toBe(1)
+	})
+
+	it('asks the blockers first and reloads once they allow it', async () => {
+		const { router, adapter } = createRouter([{ path: '/list', component: dummyComponent }], 'http://localhost/list')
+		const blocker = mock(async () => true)
+		router.addBlocker(blocker)
+
+		adapter.reload()
+		await flush()
+
+		expect(blocker).toHaveBeenCalledTimes(1)
+		expect(adapter.reloadCount()).toBe(1)
+	})
+
+	it('does not reload when a blocker refuses', async () => {
+		const { router, adapter } = createRouter([{ path: '/list', component: dummyComponent }], 'http://localhost/list')
+		router.addBlocker(async () => false)
+
+		adapter.reload()
+		await flush()
+
+		expect(adapter.reloadCount()).toBe(0)
+	})
+
+	it('still intercepts a push to the current URL', () => {
+		const { router, adapter } = createRouter([{ path: '/list', component: dummyComponent }], 'http://localhost/list')
+		const before = router.getState().location
+
+		router.navigate('/list')
+
+		expect(adapter.reloadCount()).toBe(0)
+		expect(router.getState().location).not.toBe(before)
+	})
+})

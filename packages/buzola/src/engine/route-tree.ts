@@ -120,6 +120,7 @@ function createTrieNode(): TrieNode {
 
 function insertIntoTrie(root: TrieNode, pattern: string, chain: RouteNode[]): void {
 	const segments = splitPathSegments(pattern)
+	const paramNames: string[] = []
 	let node = root
 
 	for (let i = 0; i < segments.length; i++) {
@@ -127,18 +128,17 @@ function insertIntoTrie(root: TrieNode, pattern: string, chain: RouteNode[]): vo
 
 		if (segment.startsWith(':') && (segment.endsWith('+') || segment.endsWith('*'))) {
 			// Catch-all segment — consumes all remaining segments
-			const paramName = segment.slice(1, -1)
-			node.catchAllChild = { paramName, chain }
+			paramNames.push(segment.slice(1, -1))
+			node.catchAllChild = { chain, paramNames }
 			return
 		}
 
 		if (segment.startsWith(':')) {
-			// Dynamic segment
-			const paramName = segment.slice(1)
-			if (!node.dynamicChild) {
-				node.dynamicChild = { paramName, node: createTrieNode() }
-			}
-			node = node.dynamicChild.node
+			// Dynamic segment. The name stays with this route, not the shared trie node: another route
+			// through the same position may call it something else.
+			paramNames.push(segment.slice(1))
+			node.dynamicChild ??= createTrieNode()
+			node = node.dynamicChild
 		} else {
 			// Static segment
 			let child = node.staticChildren.get(segment)
@@ -151,7 +151,7 @@ function insertIntoTrie(root: TrieNode, pattern: string, chain: RouteNode[]): vo
 	}
 
 	// Terminal — route matches at this trie node
-	node.route = { chain }
+	node.route = { chain, paramNames }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
