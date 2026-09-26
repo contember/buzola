@@ -217,6 +217,8 @@ export interface NavigationAdapter {
 	 * The router pairs this with a release so its own listener does not intercept the result.
 	 */
 	leaveApp(url: string): void
+	/** Reload the current document, as `location.reload()` does. */
+	reload(): void
 	/** Go back. */
 	back(): void
 	/** Go forward. */

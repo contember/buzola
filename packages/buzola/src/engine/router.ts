@@ -1,6 +1,6 @@
 import { LoaderCache } from './loader-cache.js'
 import { matchRoutes } from './matcher.js'
-import type { BlockerFn, NavigateOptions, NavigationAdapter, RouterState, RouteTree } from './types.js'
+import type { BlockerFn, BuzolaNavigateEvent, NavigateOptions, NavigationAdapter, RouterState, RouteTree } from './types.js'
 import { extractParamNames, isSamePath, parseParamSegment } from './utils.js'
 
 /**
@@ -64,6 +64,7 @@ export class Router {
 	private navigationId = 0
 	private stopFn: (() => void) | undefined
 	private releasedURL: string | undefined
+	private reloadReleased = false
 	private blockers = new Set<BlockerFn>()
 	private pendingScrollBehavior: 'after-transition' | 'manual' = 'after-transition'
 	private pendingFocusReset: 'after-transition' | 'manual' | undefined
@@ -132,7 +133,7 @@ export class Router {
 	 * Call this once when the router is initialized.
 	 */
 	start(): () => void {
-		const handler = (event: import('./types.js').BuzolaNavigateEvent) => {
+		const handler = (event: BuzolaNavigateEvent) => {
 			// Consume the pending options before any early return — they belong to the
 			// navigation that armed them and must not leak into the next one.
 			const scrollBehavior = this.pendingScrollBehavior
@@ -144,7 +145,15 @@ export class Router {
 				this.releasedURL = undefined
 				return
 			}
+			if (event.navigationType === 'reload' && this.reloadReleased) {
+				this.reloadReleased = false
+				return
+			}
 			if (!event.canIntercept) return
+			if (event.navigationType === 'reload') {
+				this.handleReload(event)
+				return
+			}
 
 			const url = new URL(event.destination.url)
 			const matchUrl = this.createMatchUrl(url)
@@ -220,6 +229,35 @@ export class Router {
 		this.stopFn = stop
 
 		return stop
+	}
+
+	/**
+	 * A reload asks for a fresh document (e.g. to recover from stale chunks after a deploy), so it goes to
+	 * the browser. Re-rendering the current route from the JavaScript already loaded would defeat it.
+	 *
+	 * Blockers still get their say. They are async and a navigation can only be let through synchronously,
+	 * so the reload is held while they run and, if they allow it, requested again and released.
+	 */
+	private handleReload(event: BuzolaNavigateEvent): void {
+		if (this.blockers.size === 0) return
+
+		const currentNavId = ++this.navigationId
+		event.intercept({
+			scroll: 'manual',
+			focusReset: 'manual',
+			handler: async () => {
+				for (const blocker of this.blockers) {
+					if (this.navigationId !== currentNavId) return
+					const shouldProceed = await blocker()
+					if (!shouldProceed) {
+						throw new NavigationAbortedError()
+					}
+				}
+				if (this.navigationId !== currentNavId) return
+				this.reloadReleased = true
+				this.adapter.reload()
+			},
+		})
 	}
 
 	/**
