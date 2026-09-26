@@ -367,3 +367,36 @@ describe('matchRoutes', () => {
 		expect(matches).toBeNull()
 	})
 })
+
+describe('matchRoutes with differently named params at the same position', () => {
+	const tree = createTestTree([
+		{ path: '/app/programs/:programId/sessions/create', component: dummyComponent },
+		{ path: '/app/programs/:id/sessions', component: dummyComponent },
+		{ path: '/app/programs/:slug/files/:path+', component: dummyComponent },
+	])
+
+	it('names the value by the route that matched, not the one registered first', () => {
+		const matches = matchRoutes(tree, new URL('http://localhost/app/programs/42/sessions'))
+		expect(matches!.at(-1)!.node.fullPath).toBe('/app/programs/:id/sessions')
+		expect(matches!.at(-1)!.params).toEqual({ id: '42' })
+	})
+
+	it('still gives the first route its own name', () => {
+		const matches = matchRoutes(tree, new URL('http://localhost/app/programs/42/sessions/create'))
+		expect(matches!.at(-1)!.params).toEqual({ programId: '42' })
+	})
+
+	it('names values before a catch-all by the matched route too', () => {
+		const matches = matchRoutes(tree, new URL('http://localhost/app/programs/42/files/a/b'))
+		expect(matches!.at(-1)!.params).toEqual({ slug: '42', path: 'a/b' })
+	})
+
+	it('does not leak a value from a branch that failed to match', () => {
+		const tree = createTestTree([
+			{ path: '/a/:x/b', component: dummyComponent },
+			{ path: '/a/:y/:z/c', component: dummyComponent },
+		])
+		const matches = matchRoutes(tree, new URL('http://localhost/a/1/b/c'))
+		expect(matches!.at(-1)!.params).toEqual({ y: '1', z: 'b' })
+	})
+})
