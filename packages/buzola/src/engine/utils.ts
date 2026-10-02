@@ -36,3 +36,16 @@ export function isSamePath(a: string | URL, b: string | URL): boolean {
 	const urlB = typeof b === 'string' ? new URL(b) : b
 	return urlA.origin === urlB.origin && urlA.pathname === urlB.pathname
 }
+
+/**
+ * Whether going from `from` to `to` is a fragment navigation: the URLs differ at most in the hash and `to`
+ * has one. Browsers always perform those within the current document, whether intercepted or not.
+ */
+export function isFragmentNavigation(from: URL, to: URL): boolean {
+	if (to.hash === '') return false
+	const fromWithoutHash = new URL(from)
+	fromWithoutHash.hash = ''
+	const toWithoutHash = new URL(to)
+	toWithoutHash.hash = ''
+	return fromWithoutHash.href === toWithoutHash.href
+}

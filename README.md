@@ -176,7 +176,7 @@ createPage()
 
 | Component          | Description                                                                                              |
 | ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `middleware`                         |
+| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `middleware`      |
 | `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `asChild`, `activeExact` |
 | `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                              |
 | `<ErrorBoundary>`  | Catches component errors in the route tree                                                               |
@@ -215,6 +215,42 @@ router.leaveApp('/api/auth/github/start')
 The release is recorded before the navigation is requested and is keyed to the resolved URL, so it
 cannot race the event or release a different navigation. Unlike `navigate()`, the URL is passed to
 the browser as given — no base path is prepended, because the target is outside the app.
+
+### Loading a navigation as a new document
+
+By default the router handles every in-app navigation within the current document. `shouldIntercept`
+decides that per navigation: return `false` and the browser loads the destination as a new document
+instead. An app that shows a "new version available" notice can use it to load the new build on the
+next in-app navigation, and a page whose lazy chunk from an old build is gone can recover the same way.
+
+```tsx
+let outdated = false
+onNewVersionDeployed(() => {
+	outdated = true
+})
+
+<BuzolaProvider routes={routes} pageRegistry={pageRegistry} shouldIntercept={() => !outdated} />
+
+// or, when you construct the router yourself:
+new Router({ routes, adapter, shouldIntercept: () => !outdated })
+```
+
+The function receives `{ destination, from, navigationType, userInitiated }`. It runs synchronously
+inside the `navigate` event, so it cannot await anything. It is asked only about navigations the router
+would otherwise intercept — not about unmatched URLs, `leaveApp()` or navigations the browser does not
+let it intercept. A declined navigation proceeds as follows:
+
+| Navigation                             | When declined                                                                                                                                                                                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| push, replace                          | Not intercepted. The browser performs a regular document navigation: the URL changes when the new document arrives, and the history entry is pushed or replaced as requested.                                                                   |
+| traverse (Back, Forward)               | Browsers complete a traversal between entries of the same document without loading anything, so not intercepting would leave the old page under the new URL. The router intercepts it and reloads the destination entry. The URL changes first. |
+| reload                                 | Never asked. A reload always goes to the browser.                                                                                                                                                                                               |
+| fragment (`#section` on the same page) | Never asked. Browsers keep fragment navigations in the current document whether they are intercepted or not.                                                                                                                                    |
+
+Blockers are async, and a navigation the router does not intercept cannot wait for them. So while a
+blocker is registered, a declined push or replace is handled like a traversal: the router intercepts it,
+asks the blockers and, if they allow it, reloads the destination entry. The URL changes before the new
+document arrives, and a declined form submission is not resubmitted.
 
 ### Plugin Options
 

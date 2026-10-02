@@ -188,6 +188,25 @@ export interface NavigateOptions {
  */
 export type BlockerFn = () => Promise<boolean>
 
+/** A navigation the router is about to intercept, as offered to `shouldIntercept`. */
+export interface InterceptInfo {
+	/** Where the navigation goes. */
+	destination: URL
+	/** The location the router currently shows. */
+	from: URL
+	/** How the navigation moves through history. Reloads always go to the browser and are never offered. */
+	navigationType: 'push' | 'replace' | 'traverse'
+	/** Whether the user initiated the navigation (e.g., clicking a link). */
+	userInitiated: boolean
+}
+
+/**
+ * Decides whether the router handles a navigation in the current document.
+ * Return `false` to have the browser load the destination as a new document instead.
+ * Called synchronously from the `navigate` event, so it cannot await anything.
+ */
+export type ShouldInterceptFn = (info: InterceptInfo) => boolean
+
 /** Navigate event from the Navigation API (simplified). */
 export interface BuzolaNavigateEvent {
 	/** The destination URL. */

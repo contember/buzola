@@ -1134,3 +1134,69 @@ describe('ErrorBoundary', () => {
 		spy.mockRestore()
 	})
 })
+
+// ─── BuzolaProvider shouldIntercept ──────────────────────────────────────────
+
+describe('BuzolaProvider shouldIntercept', () => {
+	/* The provider builds its router on the browser adapter, so stand in for the slice of the
+	   Navigation API it uses and raise navigate events by hand. */
+	interface FakeNavigateEvent {
+		destination: { url: string }
+		canIntercept: boolean
+		navigationType: 'push'
+		userInitiated: boolean
+		intercept: () => void
+	}
+
+	function withNavigation() {
+		const listeners = new Set<(event: FakeNavigateEvent) => void>()
+		Object.defineProperty(window, 'navigation', {
+			value: {
+				currentEntry: { url: 'http://localhost/', getState: () => undefined },
+				addEventListener: (type: string, listener: (event: FakeNavigateEvent) => void) => listeners.add(listener),
+				removeEventListener: (type: string, listener: (event: FakeNavigateEvent) => void) => listeners.delete(listener),
+			},
+			writable: true,
+			configurable: true,
+		})
+		return function push(url: string) {
+			const intercept = mock(() => {})
+			for (const listener of listeners) {
+				listener({ destination: { url }, canIntercept: true, navigationType: 'push', userInitiated: true, intercept })
+			}
+			return intercept
+		}
+	}
+
+	afterEach(() => {
+		Reflect.deleteProperty(window, 'navigation')
+	})
+
+	const routes = buildRouteTree([
+		{ path: '/', component: Home, isIndex: true },
+		{ path: '/about', component: About },
+	])
+
+	it('lets the browser take a navigation the prop declines', () => {
+		const push = withNavigation()
+		render(<BuzolaProvider routes={routes} shouldIntercept={() => false} />)
+
+		expect(push('http://localhost/about')).not.toHaveBeenCalled()
+	})
+
+	it('consults the prop from the latest render', () => {
+		const push = withNavigation()
+		const { rerender } = render(<BuzolaProvider routes={routes} shouldIntercept={() => true} />)
+
+		rerender(<BuzolaProvider routes={routes} shouldIntercept={() => false} />)
+
+		expect(push('http://localhost/about')).not.toHaveBeenCalled()
+	})
+
+	it('intercepts as before without the prop', () => {
+		const push = withNavigation()
+		render(<BuzolaProvider routes={routes} />)
+
+		expect(push('http://localhost/about')).toHaveBeenCalledTimes(1)
+	})
+})
