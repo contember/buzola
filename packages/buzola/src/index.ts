@@ -19,6 +19,7 @@ export type {
 	BuzolaPageMap,
 	BuzolaPersistentParams,
 	EffectivePageParams,
+	InterceptInfo,
 	NavigateOptions,
 	NavigationAdapter,
 	PageParams,
@@ -29,6 +30,7 @@ export type {
 	RouteNode,
 	RouterState,
 	RouteTree,
+	ShouldInterceptFn,
 	StandardSchema,
 } from './engine/types.js'
 

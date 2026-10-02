@@ -1,7 +1,7 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { createBrowserNavigationAdapter } from '../engine/navigation-adapter.js'
 import { Router } from '../engine/router.js'
-import type { RouteMatch, RouteTree } from '../engine/types.js'
+import type { RouteMatch, RouteTree, ShouldInterceptFn } from '../engine/types.js'
 import { RouteContext, type RouteContextValue, RouterContext } from './context.js'
 import { Outlet } from './outlet.js'
 
@@ -25,12 +25,14 @@ export type BuzolaProviderProps =
 		middleware?: MiddlewareComponent
 	}
 	& (
-		| { router: Router; routes?: never; persistentParams?: never; pageRegistry?: never }
+		| { router: Router; routes?: never; persistentParams?: never; pageRegistry?: never; shouldIntercept?: never }
 		| {
 			router?: never
 			routes: RouteTree
 			persistentParams?: () => Record<string, string>
 			pageRegistry?: Record<string, string>
+			/** Decides per navigation whether the router handles it; see `RouterOptions.shouldIntercept`. */
+			shouldIntercept?: ShouldInterceptFn
 		}
 	)
 
@@ -39,6 +41,11 @@ export type BuzolaProviderProps =
  * Subscribes to router state and provides context to the React tree.
  */
 export function BuzolaProvider({ routes, children, middleware: Middleware, ...props }: BuzolaProviderProps): React.ReactElement {
+	// The router is created once, so it reads the latest prop through a ref rather than the first render's closure.
+	const shouldInterceptRef = useRef(props.shouldIntercept)
+	useLayoutEffect(() => {
+		shouldInterceptRef.current = props.shouldIntercept
+	})
 	const routerRef = useRef<Router | undefined>(props.router)
 	if (!routerRef.current) {
 		routerRef.current = new Router({
@@ -46,6 +53,7 @@ export function BuzolaProvider({ routes, children, middleware: Middleware, ...pr
 			adapter: createBrowserNavigationAdapter(),
 			persistentParams: props.persistentParams,
 			pageRegistry: props.pageRegistry,
+			shouldIntercept: info => shouldInterceptRef.current?.(info) ?? true,
 		})
 	}
 	const router = routerRef.current

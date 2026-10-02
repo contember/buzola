@@ -152,11 +152,11 @@ export function createMemoryNavigationAdapter(
 		}
 
 		if (intercepted && interceptHandler) {
-			// Run the handler and only commit navigation state on success.
+			// Like the browser, commit the destination entry before the handler runs. A handler that
+			// fails or reloads therefore sees the destination as the current entry.
+			commitNavigation(true)
 			void interceptHandler().then(
-				() => {
-					commitNavigation(true)
-				},
+				() => {},
 				(error) => {
 					// Guard aborts are expected — rethrow unexpected errors
 					if (error instanceof Error && error.name === 'NavigationAbortedError') return

@@ -1,7 +1,7 @@
 import { LoaderCache } from './loader-cache.js'
 import { matchRoutes } from './matcher.js'
-import type { BlockerFn, BuzolaNavigateEvent, NavigateOptions, NavigationAdapter, RouterState, RouteTree } from './types.js'
-import { extractParamNames, isSamePath, parseParamSegment } from './utils.js'
+import type { BlockerFn, BuzolaNavigateEvent, NavigateOptions, NavigationAdapter, RouterState, RouteTree, ShouldInterceptFn } from './types.js'
+import { extractParamNames, isFragmentNavigation, isSamePath, parseParamSegment } from './utils.js'
 
 /**
  * Thrown when a route guard prevents navigation.
@@ -45,6 +45,16 @@ export interface RouterOptions {
 	 * Set to 0 to always re-fetch on URL change (default).
 	 */
 	loaderCacheSize?: number
+	/**
+	 * Decides, per navigation, whether the router handles it in the current document.
+	 * Return `false` to have the browser load the destination as a new document instead —
+	 * e.g. to pick up a newly deployed build on the next in-app navigation.
+	 *
+	 * Offered every push, replace and traverse the router would otherwise intercept, except
+	 * fragment navigations. Defaults to intercepting everything. See the README for how
+	 * traversals and blockers are handled.
+	 */
+	shouldIntercept?: ShouldInterceptFn
 }
 
 /**
@@ -58,6 +68,7 @@ export class Router {
 	private readonly _basePath: string
 	private readonly persistentParamsFn?: () => Record<string, string>
 	private readonly pageRegistry: Record<string, string>
+	private readonly shouldIntercept: ShouldInterceptFn | undefined
 	private subscribers = new Set<RouterSubscriber>()
 	private invalidationListeners = new Set<() => void>()
 	private state: RouterState
@@ -77,6 +88,7 @@ export class Router {
 		this._basePath = options.basePath ? options.basePath.replace(/\/$/, '') : ''
 		this.persistentParamsFn = options.persistentParams
 		this.pageRegistry = options.pageRegistry ?? {}
+		this.shouldIntercept = options.shouldIntercept
 		this._loaderCache = options.loaderCacheSize ? new LoaderCache(options.loaderCacheSize) : undefined
 
 		// Initialize state from current URL
@@ -163,6 +175,21 @@ export class Router {
 				return
 			}
 
+			// The browser decides a fragment navigation against the committed entry, which runs ahead of the
+			// page on screen while a navigation is pending (e.g. a blocker dialog is open).
+			if (this.shouldIntercept && !isFragmentNavigation(this.adapter.getCurrentURL(), url)) {
+				const intercept = this.shouldIntercept({
+					destination: url,
+					from: this.state.location,
+					navigationType: event.navigationType,
+					userInitiated: event.userInitiated,
+				})
+				if (!intercept) {
+					this.handleDeclined(event)
+					return
+				}
+			}
+
 			const currentNavId = ++this.navigationId
 			const useViewTransition = event.viewTransition || this.viewTransitions
 			// Query-only navigations stay on the same page — keep focus where the user left it
@@ -240,7 +267,28 @@ export class Router {
 	 */
 	private handleReload(event: BuzolaNavigateEvent): void {
 		if (this.blockers.size === 0) return
+		this.reloadAfterBlockers(event)
+	}
 
+	/**
+	 * `shouldIntercept` declined this navigation, so the destination must load as a new document.
+	 *
+	 * A push or replace is simply not intercepted, and the browser performs the document navigation itself.
+	 * That does not work for a traversal, which the browser completes within the document, nor while
+	 * blockers are registered, since they are async. Those are intercepted, which commits the destination
+	 * entry, and that entry is reloaded once the blockers allow it.
+	 */
+	private handleDeclined(event: BuzolaNavigateEvent): void {
+		if (event.navigationType !== 'traverse' && this.blockers.size === 0) return
+		this.reloadAfterBlockers(event)
+	}
+
+	/**
+	 * Hold the navigation while the blockers run and, if they allow it, reload the current entry —
+	 * which is already the navigation's destination, because an intercepted navigation commits before
+	 * its handler runs.
+	 */
+	private reloadAfterBlockers(event: BuzolaNavigateEvent): void {
 		const currentNavId = ++this.navigationId
 		event.intercept({
 			scroll: 'manual',

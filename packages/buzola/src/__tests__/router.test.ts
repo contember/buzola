@@ -3,7 +3,7 @@ import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
 import { Router } from '../engine/router.js'
-import type { BuzolaNavigateEvent, NavigationAdapter, RouteConfig } from '../engine/types.js'
+import type { BuzolaNavigateEvent, InterceptInfo, NavigationAdapter, RouteConfig, ShouldInterceptFn } from '../engine/types.js'
 
 function dummyComponent() {
 	return null
@@ -12,7 +12,7 @@ function dummyComponent() {
 function createRouter(
 	configs: RouteConfig[],
 	initialURL = 'http://localhost/',
-	options?: { persistentParams?: () => Record<string, string> },
+	options?: { persistentParams?: () => Record<string, string>; shouldIntercept?: ShouldInterceptFn },
 ) {
 	const routes = buildRouteTree(configs)
 	const adapter = createMemoryNavigationAdapter({ initialURL })
@@ -516,5 +516,224 @@ describe('Router reload', () => {
 
 		expect(adapter.reloadCount()).toBe(0)
 		expect(router.getState().location).not.toBe(before)
+	})
+})
+
+describe('Router shouldIntercept', () => {
+	const flush = () => new Promise(resolve => setTimeout(resolve, 0))
+	const configs: RouteConfig[] = [
+		{ path: '/list', component: dummyComponent },
+		{ path: '/about', component: dummyComponent },
+	]
+
+	it('intercepts every navigation when the option is not set', () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list')
+
+		router.navigate('/about')
+		router.back()
+
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(0)
+	})
+
+	it('intercepts a navigation it allows', () => {
+		const { router } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => true })
+
+		router.navigate('/about')
+
+		expect(router.getState().location.pathname).toBe('/about')
+	})
+
+	it('describes the navigation it is asked about', () => {
+		const shouldIntercept = mock((info: InterceptInfo) => true)
+		const { router } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+
+		router.navigate('/about?tab=team', { replace: true })
+
+		const info = shouldIntercept.mock.calls[0][0]
+		expect(info.destination.href).toBe('http://localhost/about?tab=team')
+		expect(info.from.href).toBe('http://localhost/list')
+		expect(info.navigationType).toBe('replace')
+		expect(info.userInitiated).toBe(false)
+	})
+
+	it('lets a declined push through to the browser as a document navigation', () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => false })
+
+		router.navigate('/about')
+
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
+		// The browser took it: the router neither rendered the destination nor turned it into a reload.
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(0)
+	})
+
+	it('lets a declined replace through to the browser as a document navigation', () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => false })
+
+		router.navigate('/about', { replace: true })
+
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(0)
+	})
+
+	it('reloads at the destination of a declined traversal', () => {
+		let intercept = true
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => intercept })
+		router.navigate('/about')
+
+		intercept = false
+		router.back()
+
+		expect(adapter.getCurrentURL().pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(1)
+		expect(router.getState().location.pathname).toBe('/about')
+	})
+
+	it('intercepts a traversal it allows', () => {
+		const shouldIntercept = mock((info: InterceptInfo) => true)
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+		router.navigate('/about')
+
+		router.back()
+
+		expect(shouldIntercept.mock.calls.at(-1)?.[0].navigationType).toBe('traverse')
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(0)
+	})
+
+	it('is not asked about a reload, which always goes to the browser', () => {
+		const shouldIntercept = mock(() => true)
+		const { adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+
+		adapter.reload()
+
+		expect(shouldIntercept).not.toHaveBeenCalled()
+		expect(adapter.reloadCount()).toBe(1)
+	})
+
+	it('is not asked about a fragment navigation, which the browser keeps in the document anyway', () => {
+		const shouldIntercept = mock(() => false)
+		const { router } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+
+		router.navigate('/list#details')
+
+		expect(shouldIntercept).not.toHaveBeenCalled()
+		expect(router.getState().location.hash).toBe('#details')
+	})
+
+	it('is asked when the path changes along with the hash', () => {
+		const shouldIntercept = mock(() => false)
+		const { router } = createRouter(configs, 'http://localhost/list#details', { shouldIntercept })
+
+		router.navigate('/about#team')
+
+		expect(shouldIntercept).toHaveBeenCalledTimes(1)
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('is asked when the hash is dropped, since that loads a document', () => {
+		const shouldIntercept = mock(() => false)
+		const { router } = createRouter(configs, 'http://localhost/list#details', { shouldIntercept })
+
+		router.navigate('/list')
+
+		expect(shouldIntercept).toHaveBeenCalledTimes(1)
+	})
+
+	it('is not asked about a URL handed to the browser with leaveApp', () => {
+		const shouldIntercept = mock(() => true)
+		const { router } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+
+		router.leaveApp('/about')
+
+		expect(shouldIntercept).not.toHaveBeenCalled()
+	})
+
+	it('asks the blockers before a declined push and then loads the destination', async () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => false })
+		const blocker = mock(async () => true)
+		router.addBlocker(blocker)
+
+		router.navigate('/about')
+		await flush()
+
+		expect(blocker).toHaveBeenCalledTimes(1)
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
+		expect(adapter.reloadCount()).toBe(1)
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('does not load the destination of a declined navigation when a blocker refuses', async () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => false })
+		router.addBlocker(async () => false)
+
+		router.navigate('/about')
+		await flush()
+
+		expect(adapter.reloadCount()).toBe(0)
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('asks the blockers before a declined traversal and then loads the destination', async () => {
+		let intercept = true
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => intercept })
+		router.navigate('/about')
+		await flush()
+		const blocker = mock(async () => true)
+		router.addBlocker(blocker)
+
+		intercept = false
+		router.back()
+		await flush()
+
+		expect(blocker).toHaveBeenCalledTimes(1)
+		expect(adapter.getCurrentURL().pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(1)
+		expect(router.getState().location.pathname).toBe('/about')
+	})
+
+	it('does not load the destination of a declined traversal when a blocker refuses', async () => {
+		let intercept = true
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => intercept })
+		router.navigate('/about')
+		await flush()
+		router.addBlocker(async () => false)
+
+		intercept = false
+		router.back()
+		await flush()
+
+		expect(adapter.reloadCount()).toBe(0)
+		expect(adapter.getCurrentURL().pathname).toBe('/list')
+		expect(router.getState().location.pathname).toBe('/about')
+	})
+
+	it('treats a fragment of the committed entry as a fragment navigation while a navigation is pending', async () => {
+		let intercept = true
+		const shouldIntercept = mock(() => intercept)
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+		let blockerCalls = 0
+		router.addBlocker(async () => {
+			blockerCalls++
+			// The first navigation stays pending, like one held by an open unsaved-changes dialog.
+			if (blockerCalls === 1) return new Promise<boolean>(() => {})
+			return true
+		})
+		router.navigate('/about')
+		await flush()
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
+		expect(router.getState().location.pathname).toBe('/list')
+
+		intercept = false
+		router.navigate('/about#team')
+		await flush()
+
+		// The browser keeps `/about#team` in the document, so declining it would load nothing.
+		expect(shouldIntercept).toHaveBeenCalledTimes(1)
+		expect(adapter.reloadCount()).toBe(0)
+		expect(router.getState().location.href).toBe('http://localhost/about#team')
 	})
 })
