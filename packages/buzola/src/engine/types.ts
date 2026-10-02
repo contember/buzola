@@ -192,7 +192,10 @@ export type BlockerFn = () => Promise<boolean>
 export interface InterceptInfo {
 	/** Where the navigation goes. */
 	destination: URL
-	/** The location the router currently shows. */
+	/**
+	 * The location the router currently shows. While a navigation is pending, this can differ from
+	 * `navigation.currentEntry`, which has already moved to that navigation's destination.
+	 */
 	from: URL
 	/** How the navigation moves through history. Reloads always go to the browser and are never offered. */
 	navigationType: 'push' | 'replace' | 'traverse'

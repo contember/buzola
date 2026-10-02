@@ -673,6 +673,67 @@ describe('Router shouldIntercept', () => {
 		await flush()
 
 		expect(adapter.reloadCount()).toBe(0)
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
 		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('asks the blockers before a declined traversal and then loads the destination', async () => {
+		let intercept = true
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => intercept })
+		router.navigate('/about')
+		await flush()
+		const blocker = mock(async () => true)
+		router.addBlocker(blocker)
+
+		intercept = false
+		router.back()
+		await flush()
+
+		expect(blocker).toHaveBeenCalledTimes(1)
+		expect(adapter.getCurrentURL().pathname).toBe('/list')
+		expect(adapter.reloadCount()).toBe(1)
+		expect(router.getState().location.pathname).toBe('/about')
+	})
+
+	it('does not load the destination of a declined traversal when a blocker refuses', async () => {
+		let intercept = true
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept: () => intercept })
+		router.navigate('/about')
+		await flush()
+		router.addBlocker(async () => false)
+
+		intercept = false
+		router.back()
+		await flush()
+
+		expect(adapter.reloadCount()).toBe(0)
+		expect(adapter.getCurrentURL().pathname).toBe('/list')
+		expect(router.getState().location.pathname).toBe('/about')
+	})
+
+	it('treats a fragment of the committed entry as a fragment navigation while a navigation is pending', async () => {
+		let intercept = true
+		const shouldIntercept = mock(() => intercept)
+		const { router, adapter } = createRouter(configs, 'http://localhost/list', { shouldIntercept })
+		let blockerCalls = 0
+		router.addBlocker(async () => {
+			blockerCalls++
+			// The first navigation stays pending, like one held by an open unsaved-changes dialog.
+			if (blockerCalls === 1) return new Promise<boolean>(() => {})
+			return true
+		})
+		router.navigate('/about')
+		await flush()
+		expect(adapter.getCurrentURL().pathname).toBe('/about')
+		expect(router.getState().location.pathname).toBe('/list')
+
+		intercept = false
+		router.navigate('/about#team')
+		await flush()
+
+		// The browser keeps `/about#team` in the document, so declining it would load nothing.
+		expect(shouldIntercept).toHaveBeenCalledTimes(1)
+		expect(adapter.reloadCount()).toBe(0)
+		expect(router.getState().location.href).toBe('http://localhost/about#team')
 	})
 })

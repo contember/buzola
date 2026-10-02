@@ -175,7 +175,9 @@ export class Router {
 				return
 			}
 
-			if (this.shouldIntercept && !isFragmentNavigation(this.state.location, url)) {
+			// The browser decides a fragment navigation against the committed entry, which runs ahead of the
+			// page on screen while a navigation is pending (e.g. a blocker dialog is open).
+			if (this.shouldIntercept && !isFragmentNavigation(this.adapter.getCurrentURL(), url)) {
 				const intercept = this.shouldIntercept({
 					destination: url,
 					from: this.state.location,

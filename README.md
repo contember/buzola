@@ -250,7 +250,8 @@ let it intercept. A declined navigation proceeds as follows:
 Blockers are async, and a navigation the router does not intercept cannot wait for them. So while a
 blocker is registered, a declined push or replace is handled like a traversal: the router intercepts it,
 asks the blockers and, if they allow it, reloads the destination entry. The URL changes before the new
-document arrives, and a declined form submission is not resubmitted.
+document arrives, and a declined form submission is not resubmitted. If a blocker refuses, the URL stays
+at the destination while the previous page stays on screen, as with any blocked navigation.
 
 ### Plugin Options
 
