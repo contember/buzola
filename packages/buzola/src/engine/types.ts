@@ -168,7 +168,7 @@ export interface NavigateOptions {
 	viewTransition?: boolean
 	/**
 	 * Whether to reset scroll position after navigation.
-	 * Default is `true` (browser handles it: scroll to top on push, restore on traverse).
+	 * Default is `true`: scroll to the top (or to the `#fragment`) on push and replace, restore on traverse.
 	 * Set to `false` to preserve current scroll position.
 	 */
 	resetScroll?: boolean

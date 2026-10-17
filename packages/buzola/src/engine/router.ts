@@ -215,8 +215,14 @@ export class Router {
 			const focusReset = explicitFocusReset
 				?? (isSamePath(this.state.location, url) && this.state.location.hash === url.hash ? 'manual' : 'after-transition')
 
+			// Safari 26.5 scrolls an intercepted push or replace to the top only in the web process. The page reports
+			// scrollY 0 while the screen stays where it was (a sticky header is gone) until the next scroll, which
+			// jumps from the old position (WebKit bug 309542, fixed in 308976@main). window.scrollTo reaches the
+			// screen, so the router scrolls to the top itself. A fragment and a traversal stay with the browser.
+			const scrollToTop = scrollBehavior === 'after-transition' && event.navigationType !== 'traverse' && url.hash === ''
+
 			event.intercept({
-				scroll: scrollBehavior,
+				scroll: scrollToTop ? 'manual' : scrollBehavior,
 				focusReset,
 				handler: async () => {
 					// Check blockers before setting pending state
@@ -243,6 +249,11 @@ export class Router {
 					const doUpdate = () => {
 						if (this.navigationId !== currentNavId) return
 						this.commitLocation(url, matches, this.adapter.getState(), event.navigationType)
+						// Instant even where the page sets scroll-behavior: smooth, so the jump does not animate. Safari's
+						// own reset is instant as well (Chromium's follows the CSS).
+						if (scrollToTop && typeof window !== 'undefined') {
+							window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+						}
 					}
 
 					if (useViewTransition) {

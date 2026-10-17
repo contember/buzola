@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
@@ -334,6 +334,116 @@ describe('Router same-URL navigation', () => {
 		router.navigate('/list?q=1')
 
 		expect(count()).toBe(0)
+	})
+})
+
+describe('Router scroll to top', () => {
+	// Stands in for the window the router scrolls. Other test files install a DOM, so the real global is put back.
+	const original = Object.getOwnPropertyDescriptor(globalThis, 'window')
+	const scrollTo = mock((_options: ScrollToOptions) => {})
+	beforeEach(() => {
+		scrollTo.mockClear()
+		Object.defineProperty(globalThis, 'window', { value: { scrollTo }, writable: true, configurable: true })
+	})
+	afterEach(() => {
+		if (original) {
+			Object.defineProperty(globalThis, 'window', original)
+		} else {
+			delete (globalThis as { window?: unknown }).window
+		}
+	})
+
+	// Records the scroll option of every navigation the router intercepts.
+	function createRecordingRouter() {
+		const adapter = createMemoryNavigationAdapter({ initialURL: 'http://localhost/list' })
+		const scroll: (string | undefined)[] = []
+		const recording = new Map<(event: BuzolaNavigateEvent) => void, (event: BuzolaNavigateEvent) => void>()
+		const router = new Router({
+			routes: buildRouteTree([
+				{ path: '/list', component: dummyComponent },
+				{ path: '/about', component: dummyComponent },
+			]),
+			adapter: {
+				...adapter,
+				addEventListener(type, listener) {
+					const record = (event: BuzolaNavigateEvent) =>
+						listener({
+							...event,
+							intercept(options) {
+								scroll.push(options.scroll)
+								event.intercept(options)
+							},
+						})
+					recording.set(listener, record)
+					adapter.addEventListener(type, record)
+				},
+				removeEventListener(type, listener) {
+					const record = recording.get(listener)
+					if (record) adapter.removeEventListener(type, record)
+				},
+			},
+		})
+		router.start()
+		return { router, scroll }
+	}
+
+	it('scrolls to the top itself instead of leaving it to the browser on a push', () => {
+		const { router, scroll } = createRecordingRouter()
+
+		router.navigate('/about')
+
+		expect(scroll).toEqual(['manual'])
+		expect(scrollTo).toHaveBeenCalledTimes(1)
+		expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'instant' })
+	})
+
+	it('scrolls to the top itself on a replace', () => {
+		const { router, scroll } = createRecordingRouter()
+
+		router.navigate('/about', { replace: true })
+
+		expect(scroll).toEqual(['manual'])
+		expect(scrollTo).toHaveBeenCalledTimes(1)
+	})
+
+	it('leaves a fragment to the browser', () => {
+		const { router, scroll } = createRecordingRouter()
+
+		router.navigate('/about#team')
+
+		expect(scroll).toEqual(['after-transition'])
+		expect(scrollTo).not.toHaveBeenCalled()
+	})
+
+	it('does not scroll on a traversal, whose position the browser restores', () => {
+		const { router, scroll } = createRecordingRouter()
+		router.navigate('/about')
+
+		router.back()
+
+		expect(scroll).toEqual(['manual'])
+		expect(scrollTo).toHaveBeenCalledTimes(1)
+	})
+
+	it('leaves the restore to the browser on a traversal it intercepts', async () => {
+		const { router, scroll } = createRecordingRouter()
+		router.navigate('/about')
+		router.addBlocker(async () => true)
+
+		router.back()
+		await new Promise(resolve => setTimeout(resolve, 0))
+
+		expect(scroll).toEqual(['manual', 'after-transition'])
+		expect(scrollTo).toHaveBeenCalledTimes(1)
+	})
+
+	it('does not scroll when resetScroll is false', () => {
+		const { router, scroll } = createRecordingRouter()
+
+		router.navigate('/about', { resetScroll: false })
+
+		expect(scroll).toEqual(['manual'])
+		expect(scrollTo).not.toHaveBeenCalled()
 	})
 })
 
