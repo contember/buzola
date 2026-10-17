@@ -222,6 +222,12 @@ export interface BuzolaNavigateEvent {
 	userInitiated: boolean
 	/** Whether this navigation should use View Transitions API. */
 	viewTransition?: boolean
+	/**
+	 * Run `callback` once the browser has made the destination the current entry of a navigation nobody
+	 * intercepted. It runs before the browser restores the scroll position, and not at all if the navigation
+	 * is cancelled. An adapter that cannot tell leaves it out, and the router then intercepts traversals.
+	 */
+	whenCommitted?(callback: () => void): void
 	/** Intercept the navigation and handle it client-side. */
 	intercept(
 		options: { handler: () => Promise<void>; scroll?: 'after-transition' | 'manual'; focusReset?: 'after-transition' | 'manual' },

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, spyOn } from 'bun:test'
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
@@ -12,7 +12,7 @@ function dummyComponent() {
 function createRouter(
 	configs: RouteConfig[],
 	initialURL = 'http://localhost/',
-	options?: { persistentParams?: () => Record<string, string>; shouldIntercept?: ShouldInterceptFn },
+	options?: { persistentParams?: () => Record<string, string>; shouldIntercept?: ShouldInterceptFn; viewTransitions?: boolean },
 ) {
 	const routes = buildRouteTree(configs)
 	const adapter = createMemoryNavigationAdapter({ initialURL })
@@ -307,6 +307,26 @@ describe('Router same-URL navigation', () => {
 		expect(count()).toBe(1)
 	})
 
+	it('does not invalidate on a traversal between two entries with the same URL', () => {
+		const { router, count } = createCountingRouter('http://localhost/list')
+		router.navigate('/list')
+
+		router.back()
+
+		expect(count()).toBe(1)
+	})
+
+	it('does not invalidate on an intercepted traversal between two entries with the same URL', async () => {
+		const { router, count } = createCountingRouter('http://localhost/list')
+		router.navigate('/list')
+		router.addBlocker(async () => true)
+
+		router.back()
+		await new Promise(resolve => setTimeout(resolve, 0))
+
+		expect(count()).toBe(1)
+	})
+
 	it('does not invalidate when the URL changes: the href-keyed loader reloads on its own', () => {
 		const { router, count } = createCountingRouter('http://localhost/')
 
@@ -418,6 +438,165 @@ describe('Router focus reset', () => {
 		} finally {
 			warn.mockRestore()
 		}
+	})
+})
+
+describe('Router traversals', () => {
+	const flush = () => new Promise(resolve => setTimeout(resolve, 0))
+	const configs: RouteConfig[] = [
+		{ path: '/list', component: dummyComponent },
+		{ path: '/about', component: dummyComponent },
+	]
+
+	// Safari only restores scroll reliably on the classic, non-intercepted path (see Router.start).
+	it('leaves a traversal to the browser and renders the destination once it commits', () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list')
+		router.navigate('/about')
+
+		router.back()
+
+		expect(adapter.interceptCount('traverse')).toBe(0)
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(router.getState().isPending).toBe(false)
+	})
+
+	it('takes the navigation state from the entry it traverses to', () => {
+		const { router } = createRouter(configs, 'http://localhost/list')
+		router.navigate('/about', { state: { tab: 'team' } })
+		router.navigate('/list')
+
+		router.back()
+
+		expect(router.getState().navigationState).toEqual({ tab: 'team' })
+	})
+
+	it('intercepts a traversal while a blocker is registered, so the blocker can hold it', async () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list')
+		router.navigate('/about')
+		await flush()
+		const blocker = mock(async () => true)
+		router.addBlocker(blocker)
+
+		router.back()
+		await flush()
+
+		expect(adapter.interceptCount('traverse')).toBe(1)
+		expect(blocker).toHaveBeenCalledTimes(1)
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	// Lets a test change the navigate events the router sees.
+	function createRouterSeeing(change: (event: BuzolaNavigateEvent) => BuzolaNavigateEvent) {
+		const adapter = createMemoryNavigationAdapter({ initialURL: 'http://localhost/list' })
+		const wrapped = new Map<(event: BuzolaNavigateEvent) => void, (event: BuzolaNavigateEvent) => void>()
+		const router = new Router({
+			routes: buildRouteTree(configs),
+			adapter: {
+				...adapter,
+				addEventListener(type, listener) {
+					const changed = (event: BuzolaNavigateEvent) => listener(change(event))
+					wrapped.set(listener, changed)
+					adapter.addEventListener(type, changed)
+				},
+				removeEventListener(type, listener) {
+					const changed = wrapped.get(listener)
+					if (changed) adapter.removeEventListener(type, changed)
+				},
+			},
+		})
+		router.start()
+		return { router, adapter }
+	}
+
+	it('renders a traversal only when the browser commits it, so a cancelled one never shows', () => {
+		let commit: (() => void) | undefined
+		const { router } = createRouterSeeing(event => ({ ...event, whenCommitted: callback => (commit = callback) }))
+		router.navigate('/about')
+
+		router.back()
+		expect(router.getState().location.pathname).toBe('/about')
+
+		commit?.()
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('intercepts a traversal when the adapter cannot report its commit', () => {
+		const { router, adapter } = createRouterSeeing(({ whenCommitted: _, ...event }) => event)
+		router.navigate('/about')
+
+		router.back()
+
+		expect(adapter.interceptCount('traverse')).toBe(1)
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('leaves a forward traversal to the browser too', () => {
+		const { router, adapter } = createRouter(configs, 'http://localhost/list')
+		router.navigate('/about', { state: { tab: 'team' } })
+		router.back()
+
+		router.forward()
+
+		expect(adapter.interceptCount('traverse')).toBe(0)
+		expect(router.getState().location.pathname).toBe('/about')
+		expect(router.getState().navigationState).toEqual({ tab: 'team' })
+	})
+
+	describe('with view transitions', () => {
+		// Stands in for the document, holding each view transition update until the test runs it.
+		// Other test files install a DOM, so the real global is put back afterwards.
+		const original = Object.getOwnPropertyDescriptor(globalThis, 'document')
+		let transitions: (() => void)[] = []
+		function withDocument(viewTransitions: boolean) {
+			transitions = []
+			const document = viewTransitions ? { startViewTransition: (update: () => void) => transitions.push(update) } : {}
+			Object.defineProperty(globalThis, 'document', { value: document, writable: true, configurable: true })
+		}
+		afterEach(() => {
+			if (original) {
+				Object.defineProperty(globalThis, 'document', original)
+			} else {
+				delete (globalThis as { document?: unknown }).document
+			}
+		})
+
+		it('intercepts a traversal that runs a view transition', async () => {
+			withDocument(true)
+			const { router, adapter } = createRouter(configs, 'http://localhost/list', { viewTransitions: true })
+			router.navigate('/about')
+			await flush()
+			transitions.shift()?.()
+
+			router.back()
+			await flush()
+			transitions.shift()?.()
+
+			expect(adapter.interceptCount('traverse')).toBe(1)
+			expect(router.getState().location.pathname).toBe('/list')
+		})
+
+		it('leaves a traversal to the browser when it has no view transitions', () => {
+			withDocument(false)
+			const { router, adapter } = createRouter(configs, 'http://localhost/list', { viewTransitions: true })
+			router.navigate('/about')
+
+			router.back()
+
+			expect(adapter.interceptCount('traverse')).toBe(0)
+			expect(router.getState().location.pathname).toBe('/list')
+		})
+
+		it('drops the update of a transition that a traversal overtook', async () => {
+			withDocument(true)
+			const { router } = createRouter(configs, 'http://localhost/list')
+			router.navigate('/about', { viewTransition: true })
+			await flush()
+
+			router.back()
+			transitions.shift()?.()
+
+			expect(router.getState().location.pathname).toBe('/list')
+		})
 	})
 })
 

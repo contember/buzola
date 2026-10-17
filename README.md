@@ -289,6 +289,8 @@ Files use `createPage()` to define their params, loaders, and component. The `.r
 
 **Loaders** -- Multiple loaders can be chained on a single page. Their results are merged into the `data` prop. Loaders support redirects via `redirect(pageId, params)` with full type safety.
 
+**Back and forward** -- The router leaves a traversal to the browser and renders its destination as soon as the browser switches to that entry, just before it restores the scroll position. It intercepts a traversal only while a blocker is registered or a view transition runs. The browser can only restore a position the page is tall enough for, so a page whose loader fetches again on Back comes back at the top, and Safari keeps its swipe snapshot up for 3 seconds. Create the router with `loaderCacheSize` so such a page renders its cached data first.
+
 ## Requirements
 
 - React 18 or 19

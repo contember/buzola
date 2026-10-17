@@ -1,5 +1,6 @@
 import { createPage, Link, useRoute } from '@buzola/router'
 import React from 'react'
+import { LongContent } from '../../components/long-content.js'
 
 const mockUsers: Record<string, { name: string; email: string }> = {
 	'1': { name: 'Alice', email: 'alice@example.com' },
@@ -51,6 +52,7 @@ export default createPage()
 					<Link to="users/detail" params={{ userId: params.userId, tab: 'posts' }}>Posts tab</Link>
 					<Link to="users/detail" params={{ userId: params.userId, tab: 'activity' }}>Activity tab</Link>
 				</div>
+				<LongContent label={data.user.name} />
 			</div>
 		)
 	})

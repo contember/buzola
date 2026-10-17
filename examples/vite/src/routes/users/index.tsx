@@ -1,5 +1,6 @@
 import { createPage, Link } from '@buzola/router'
 import React from 'react'
+import { LongContent } from '../../components/long-content.js'
 
 export default createPage()
 	.route('/users')
@@ -17,5 +18,6 @@ export default createPage()
 					<Link to="users/detail" params={{ userId: '3' }}>Charlie (ID: 3)</Link>
 				</li>
 			</ul>
+			<LongContent label="All users" />
 		</div>
 	))

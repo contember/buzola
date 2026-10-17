@@ -26,6 +26,19 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 			navigationType: event.navigationType as BuzolaNavigateEvent['navigationType'],
 			userInitiated: event.userInitiated,
 			viewTransition,
+			whenCommitted(callback) {
+				// The next entry change a navigation makes is this one's commit, unless it was cancelled and another
+				// navigation got there first. The destination key tells them apart (it is set on traversals).
+				// updateCurrentEntry() also fires the event, with no navigation type, and commits nothing: code that
+				// saves the scroll position into the entry being left does exactly that while the traversal is pending.
+				const key = event.destination.key
+				const onChange = (change: NavigationCurrentEntryChangeEvent) => {
+					if (change.navigationType === null) return
+					nav.removeEventListener('currententrychange', onChange)
+					if (nav.currentEntry?.key === key) callback()
+				}
+				nav.addEventListener('currententrychange', onChange)
+			},
 			intercept(options) {
 				event.intercept({
 					handler: options.handler,
@@ -113,6 +126,8 @@ export interface MemoryNavigationAdapter extends NavigationAdapter {
 	leftApp(): readonly string[]
 	/** How many reloads went through to the browser, i.e. were not intercepted. */
 	reloadCount(): number
+	/** How many navigations of each type the router intercepted. */
+	interceptCount(type: BuzolaNavigateEvent['navigationType']): number
 }
 
 export function createMemoryNavigationAdapter(
@@ -125,6 +140,7 @@ export function createMemoryNavigationAdapter(
 	const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
 	const left: string[] = []
 	let reloads = 0
+	const intercepts = new Map<BuzolaNavigateEvent['navigationType'], number>()
 
 	function emitNavigateEvent(
 		url: string,
@@ -134,6 +150,7 @@ export function createMemoryNavigationAdapter(
 	): void {
 		let intercepted = false
 		let interceptHandler: (() => Promise<void>) | undefined
+		let onCommitted: (() => void) | undefined
 
 		const event: BuzolaNavigateEvent = {
 			destination: { url },
@@ -141,6 +158,9 @@ export function createMemoryNavigationAdapter(
 			navigationType,
 			userInitiated: false,
 			viewTransition,
+			whenCommitted(callback) {
+				onCommitted = callback
+			},
 			intercept(options) {
 				intercepted = true
 				interceptHandler = options.handler
@@ -152,6 +172,7 @@ export function createMemoryNavigationAdapter(
 		}
 
 		if (intercepted && interceptHandler) {
+			intercepts.set(navigationType, (intercepts.get(navigationType) ?? 0) + 1)
 			// Like the browser, commit the destination entry before the handler runs. A handler that
 			// fails or reloads therefore sees the destination as the current entry.
 			commitNavigation(true)
@@ -166,6 +187,7 @@ export function createMemoryNavigationAdapter(
 		} else {
 			// No interception: commit immediately
 			commitNavigation(false)
+			onCommitted?.()
 		}
 	}
 
@@ -230,6 +252,9 @@ export function createMemoryNavigationAdapter(
 		},
 		reloadCount() {
 			return reloads
+		},
+		interceptCount(type) {
+			return intercepts.get(type) ?? 0
 		},
 	}
 }
