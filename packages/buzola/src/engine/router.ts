@@ -191,7 +191,22 @@ export class Router {
 			}
 
 			const currentNavId = ++this.navigationId
-			const useViewTransition = event.viewTransition || this.viewTransitions
+			const useViewTransition = (event.viewTransition || this.viewTransitions) && typeof document !== 'undefined'
+				&& 'startViewTransition' in document
+
+			// A traversal nobody needs to hold is left to the browser and rendered right here, inside the event.
+			// Safari restores scroll for an intercepted traversal in a later task, and skips the restore if a wheel
+			// event reached the page in between. A trackpad back swipe always delivers some, and React always has
+			// a wheel listener, so the page comes back unscrolled and the swipe snapshot hangs for its 3 s timeout.
+			// Not intercepted, the traversal takes the browser's classic path, which restores scroll in the same task.
+			// The page is committed before the browser commits the entry, so a later navigate listener that cancels
+			// the traversal leaves the destination on screen under the old URL. Code that must stop a traversal
+			// registers a blocker, which keeps it intercepted.
+			if (event.navigationType === 'traverse' && this.blockers.size === 0 && !useViewTransition) {
+				this.commitLocation(url, matches, event.destination.getState(), event.navigationType)
+				return
+			}
+
 			// Query-only navigations stay on the same page, so keep focus where the user left it
 			// (search boxes, filters, pagination). Path changes keep the browser's focus reset,
 			// and so do fragment changes, which must move focus to the targeted section.
@@ -221,25 +236,14 @@ export class Router {
 					// A newer navigation has started, so abandon this one
 					if (this.navigationId !== currentNavId) return
 
-					// Perform the DOM update
+					// Perform the DOM update. A view transition runs it later, by when a newer navigation may have
+					// committed its own state, so check again.
 					const doUpdate = () => {
-						const previousHref = this.state.location.href
-						this.setState({
-							location: url,
-							matches,
-							isPending: false,
-							pendingLocation: undefined,
-							navigationState: this.adapter.getState(),
-						})
-						// Going to the URL we are already on is still a navigation: a browser
-						// re-requests the document for it. Loader data is keyed by href, so it
-						// would silently keep serving stale data without an explicit invalidation.
-						if (previousHref === url.href) {
-							this.invalidateAll()
-						}
+						if (this.navigationId !== currentNavId) return
+						this.commitLocation(url, matches, this.adapter.getState(), event.navigationType)
 					}
 
-					if (useViewTransition && typeof document !== 'undefined' && 'startViewTransition' in document) {
+					if (useViewTransition) {
 						;(document as unknown as { startViewTransition: (cb: () => void) => void }).startViewTransition(doUpdate)
 					} else {
 						doUpdate()
@@ -256,6 +260,30 @@ export class Router {
 		this.stopFn = stop
 
 		return stop
+	}
+
+	private commitLocation(
+		url: URL,
+		matches: RouterState['matches'],
+		navigationState: unknown,
+		navigationType: BuzolaNavigateEvent['navigationType'],
+	): void {
+		const previousHref = this.state.location.href
+		this.setState({
+			location: url,
+			matches,
+			isPending: false,
+			pendingLocation: undefined,
+			navigationState,
+		})
+		// Going to the URL we are already on is still a navigation: a browser
+		// re-requests the document for it. Loader data is keyed by href, so it
+		// would silently keep serving stale data without an explicit invalidation.
+		// A traversal re-requests nothing, and reloading would shorten the page before
+		// the browser restores its scroll position.
+		if (previousHref === url.href && navigationType !== 'traverse') {
+			this.invalidateAll()
+		}
 	}
 
 	/**

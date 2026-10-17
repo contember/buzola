@@ -21,7 +21,7 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 		pendingViewTransition = false
 
 		const buzolaEvent: BuzolaNavigateEvent = {
-			destination: { url: event.destination.url },
+			destination: { url: event.destination.url, getState: () => event.destination.getState() },
 			canIntercept: event.canIntercept,
 			navigationType: event.navigationType as BuzolaNavigateEvent['navigationType'],
 			userInitiated: event.userInitiated,
@@ -113,6 +113,8 @@ export interface MemoryNavigationAdapter extends NavigationAdapter {
 	leftApp(): readonly string[]
 	/** How many reloads went through to the browser, i.e. were not intercepted. */
 	reloadCount(): number
+	/** How many navigations of each type the router intercepted. */
+	interceptCount(type: BuzolaNavigateEvent['navigationType']): number
 }
 
 export function createMemoryNavigationAdapter(
@@ -125,18 +127,20 @@ export function createMemoryNavigationAdapter(
 	const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
 	const left: string[] = []
 	let reloads = 0
+	const intercepts = new Map<BuzolaNavigateEvent['navigationType'], number>()
 
 	function emitNavigateEvent(
 		url: string,
 		navigationType: BuzolaNavigateEvent['navigationType'],
 		commitNavigation: (intercepted: boolean) => void,
-		viewTransition?: boolean,
+		options: { viewTransition?: boolean; destinationState?: unknown } = {},
 	): void {
+		const { viewTransition, destinationState } = options
 		let intercepted = false
 		let interceptHandler: (() => Promise<void>) | undefined
 
 		const event: BuzolaNavigateEvent = {
-			destination: { url },
+			destination: { url, getState: () => destinationState },
 			canIntercept: true,
 			navigationType,
 			userInitiated: false,
@@ -152,6 +156,7 @@ export function createMemoryNavigationAdapter(
 		}
 
 		if (intercepted && interceptHandler) {
+			intercepts.set(navigationType, (intercepts.get(navigationType) ?? 0) + 1)
 			// Like the browser, commit the destination entry before the handler runs. A handler that
 			// fails or reloads therefore sees the destination as the current entry.
 			commitNavigation(true)
@@ -200,20 +205,22 @@ export function createMemoryNavigationAdapter(
 					entries.push({ url: resolved, state: options?.state })
 					currentIndex++
 				}
-			}, options?.viewTransition)
+			}, { viewTransition: options?.viewTransition })
 		},
 		back() {
 			if (currentIndex > 0) {
-				emitNavigateEvent(entries[currentIndex - 1].url, 'traverse', () => {
+				const target = entries[currentIndex - 1]
+				emitNavigateEvent(target.url, 'traverse', () => {
 					currentIndex--
-				})
+				}, { destinationState: target.state })
 			}
 		},
 		forward() {
 			if (currentIndex < entries.length - 1) {
-				emitNavigateEvent(entries[currentIndex + 1].url, 'traverse', () => {
+				const target = entries[currentIndex + 1]
+				emitNavigateEvent(target.url, 'traverse', () => {
 					currentIndex++
-				})
+				}, { destinationState: target.state })
 			}
 		},
 		addEventListener(_type, handler) {
@@ -230,6 +237,9 @@ export function createMemoryNavigationAdapter(
 		},
 		reloadCount() {
 			return reloads
+		},
+		interceptCount(type) {
+			return intercepts.get(type) ?? 0
 		},
 	}
 }

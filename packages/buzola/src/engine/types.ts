@@ -212,8 +212,8 @@ export type ShouldInterceptFn = (info: InterceptInfo) => boolean
 
 /** Navigate event from the Navigation API (simplified). */
 export interface BuzolaNavigateEvent {
-	/** The destination URL. */
-	destination: { url: string }
+	/** The destination URL, and the state of the destination entry. The router reads the state only on traversals. */
+	destination: { url: string; getState(): unknown }
 	/** Whether the navigation can be intercepted. */
 	canIntercept: boolean
 	/** The type of navigation. */
