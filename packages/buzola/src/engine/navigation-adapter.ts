@@ -21,11 +21,21 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 		pendingViewTransition = false
 
 		const buzolaEvent: BuzolaNavigateEvent = {
-			destination: { url: event.destination.url, getState: () => event.destination.getState() },
+			destination: { url: event.destination.url },
 			canIntercept: event.canIntercept,
 			navigationType: event.navigationType as BuzolaNavigateEvent['navigationType'],
 			userInitiated: event.userInitiated,
 			viewTransition,
+			whenCommitted(callback) {
+				// The next entry change is this navigation's commit, unless it was cancelled and another
+				// navigation got there first. The destination key tells them apart (it is set on traversals).
+				const key = event.destination.key
+				const onChange = () => {
+					nav.removeEventListener('currententrychange', onChange)
+					if (nav.currentEntry?.key === key) callback()
+				}
+				nav.addEventListener('currententrychange', onChange)
+			},
 			intercept(options) {
 				event.intercept({
 					handler: options.handler,
@@ -133,18 +143,21 @@ export function createMemoryNavigationAdapter(
 		url: string,
 		navigationType: BuzolaNavigateEvent['navigationType'],
 		commitNavigation: (intercepted: boolean) => void,
-		options: { viewTransition?: boolean; destinationState?: unknown } = {},
+		viewTransition?: boolean,
 	): void {
-		const { viewTransition, destinationState } = options
 		let intercepted = false
 		let interceptHandler: (() => Promise<void>) | undefined
+		let onCommitted: (() => void) | undefined
 
 		const event: BuzolaNavigateEvent = {
-			destination: { url, getState: () => destinationState },
+			destination: { url },
 			canIntercept: true,
 			navigationType,
 			userInitiated: false,
 			viewTransition,
+			whenCommitted(callback) {
+				onCommitted = callback
+			},
 			intercept(options) {
 				intercepted = true
 				interceptHandler = options.handler
@@ -171,6 +184,7 @@ export function createMemoryNavigationAdapter(
 		} else {
 			// No interception: commit immediately
 			commitNavigation(false)
+			onCommitted?.()
 		}
 	}
 
@@ -205,22 +219,20 @@ export function createMemoryNavigationAdapter(
 					entries.push({ url: resolved, state: options?.state })
 					currentIndex++
 				}
-			}, { viewTransition: options?.viewTransition })
+			}, options?.viewTransition)
 		},
 		back() {
 			if (currentIndex > 0) {
-				const target = entries[currentIndex - 1]
-				emitNavigateEvent(target.url, 'traverse', () => {
+				emitNavigateEvent(entries[currentIndex - 1].url, 'traverse', () => {
 					currentIndex--
-				}, { destinationState: target.state })
+				})
 			}
 		},
 		forward() {
 			if (currentIndex < entries.length - 1) {
-				const target = entries[currentIndex + 1]
-				emitNavigateEvent(target.url, 'traverse', () => {
+				emitNavigateEvent(entries[currentIndex + 1].url, 'traverse', () => {
 					currentIndex++
-				}, { destinationState: target.state })
+				})
 			}
 		},
 		addEventListener(_type, handler) {

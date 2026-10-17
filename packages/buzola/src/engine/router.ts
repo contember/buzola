@@ -194,16 +194,18 @@ export class Router {
 			const useViewTransition = (event.viewTransition || this.viewTransitions) && typeof document !== 'undefined'
 				&& 'startViewTransition' in document
 
-			// A traversal nobody needs to hold is left to the browser and rendered right here, inside the event.
-			// Safari restores scroll for an intercepted traversal in a later task, and skips the restore if a wheel
-			// event reached the page in between. A trackpad back swipe always delivers some, and React always has
-			// a wheel listener, so the page comes back unscrolled and the swipe snapshot hangs for its 3 s timeout.
-			// Not intercepted, the traversal takes the browser's classic path, which restores scroll in the same task.
-			// The page is committed before the browser commits the entry, so a later navigate listener that cancels
-			// the traversal leaves the destination on screen under the old URL. Code that must stop a traversal
-			// registers a blocker, which keeps it intercepted.
-			if (event.navigationType === 'traverse' && this.blockers.size === 0 && !useViewTransition) {
-				this.commitLocation(url, matches, event.destination.getState(), event.navigationType)
+			// A traversal nobody needs to hold is left to the browser. Safari restores scroll for an intercepted
+			// traversal in a later task, and skips the restore if a wheel event reached the page in between. A trackpad
+			// back swipe always delivers some, and React always has a wheel listener, so the page comes back unscrolled
+			// and the swipe snapshot hangs for its 3 s timeout. Not intercepted, the traversal takes the browser's
+			// classic path, which switches the entry and restores scroll in one task. Rendering at the switch keeps the
+			// screen in step with the URL (an effect that replaces the entry must not hit the one being left) while
+			// the page is still in place before the restore.
+			if (event.navigationType === 'traverse' && this.blockers.size === 0 && !useViewTransition && event.whenCommitted) {
+				event.whenCommitted(() => {
+					if (this.navigationId !== currentNavId) return
+					this.commitLocation(url, matches, this.adapter.getState(), event.navigationType)
+				})
 				return
 			}
 

@@ -357,7 +357,7 @@ describe('Router focus reset', () => {
 			navigate(url) {
 				for (const listener of listeners) {
 					listener({
-						destination: { url: new URL(url, initialURL).href, getState: () => undefined },
+						destination: { url: new URL(url, initialURL).href },
 						canIntercept: true,
 						navigationType: 'push',
 						userInitiated: false,
@@ -449,7 +449,7 @@ describe('Router traversals', () => {
 	]
 
 	// Safari only restores scroll reliably on the classic, non-intercepted path (see Router.start).
-	it('leaves a traversal to the browser and renders the destination within the event', () => {
+	it('leaves a traversal to the browser and renders the destination once it commits', () => {
 		const { router, adapter } = createRouter(configs, 'http://localhost/list')
 		router.navigate('/about')
 
@@ -482,6 +482,51 @@ describe('Router traversals', () => {
 
 		expect(adapter.interceptCount('traverse')).toBe(1)
 		expect(blocker).toHaveBeenCalledTimes(1)
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	// Lets a test change the navigate events the router sees.
+	function createRouterSeeing(change: (event: BuzolaNavigateEvent) => BuzolaNavigateEvent) {
+		const adapter = createMemoryNavigationAdapter({ initialURL: 'http://localhost/list' })
+		const wrapped = new Map<(event: BuzolaNavigateEvent) => void, (event: BuzolaNavigateEvent) => void>()
+		const router = new Router({
+			routes: buildRouteTree(configs),
+			adapter: {
+				...adapter,
+				addEventListener(type, listener) {
+					const changed = (event: BuzolaNavigateEvent) => listener(change(event))
+					wrapped.set(listener, changed)
+					adapter.addEventListener(type, changed)
+				},
+				removeEventListener(type, listener) {
+					const changed = wrapped.get(listener)
+					if (changed) adapter.removeEventListener(type, changed)
+				},
+			},
+		})
+		router.start()
+		return { router, adapter }
+	}
+
+	it('renders a traversal only when the browser commits it, so a cancelled one never shows', () => {
+		let commit: (() => void) | undefined
+		const { router } = createRouterSeeing(event => ({ ...event, whenCommitted: callback => (commit = callback) }))
+		router.navigate('/about')
+
+		router.back()
+		expect(router.getState().location.pathname).toBe('/about')
+
+		commit?.()
+		expect(router.getState().location.pathname).toBe('/list')
+	})
+
+	it('intercepts a traversal when the adapter cannot report its commit', () => {
+		const { router, adapter } = createRouterSeeing(({ whenCommitted: _, ...event }) => event)
+		router.navigate('/about')
+
+		router.back()
+
+		expect(adapter.interceptCount('traverse')).toBe(1)
 		expect(router.getState().location.pathname).toBe('/list')
 	})
 

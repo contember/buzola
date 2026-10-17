@@ -212,8 +212,8 @@ export type ShouldInterceptFn = (info: InterceptInfo) => boolean
 
 /** Navigate event from the Navigation API (simplified). */
 export interface BuzolaNavigateEvent {
-	/** The destination URL, and the state of the destination entry. The router reads the state only on traversals. */
-	destination: { url: string; getState(): unknown }
+	/** The destination URL. */
+	destination: { url: string }
 	/** Whether the navigation can be intercepted. */
 	canIntercept: boolean
 	/** The type of navigation. */
@@ -222,6 +222,12 @@ export interface BuzolaNavigateEvent {
 	userInitiated: boolean
 	/** Whether this navigation should use View Transitions API. */
 	viewTransition?: boolean
+	/**
+	 * Run `callback` once the browser has made the destination the current entry of a navigation nobody
+	 * intercepted. It runs before the browser restores the scroll position, and not at all if the navigation
+	 * is cancelled. An adapter that cannot tell leaves it out, and the router then intercepts traversals.
+	 */
+	whenCommitted?(callback: () => void): void
 	/** Intercept the navigation and handle it client-side. */
 	intercept(
 		options: { handler: () => Promise<void>; scroll?: 'after-transition' | 'manual'; focusReset?: 'after-transition' | 'manual' },
