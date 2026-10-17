@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import type { EffectivePageParams, NavigateOptions, RegisteredPage } from '../engine/types.js'
 import { useRouter, useRouterState } from './hooks.js'
 
-// ─── Link props type — always type-safe via page ID ──────────────────────────
+// ─── Link props type: always type-safe via page ID ───────────────────────────
 
 type LinkPropsBase = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
 	/** Replace the current history entry instead of pushing. */
@@ -29,9 +29,9 @@ type LinkPropsBase = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>
 	asChild?: boolean
 	/**
 	 * Prefetch strategy for lazy-loaded route code.
-	 * - `'intent'` — preload on mouseEnter/focus (default)
-	 * - `'render'` — preload as soon as the Link renders
-	 * - `'none'` — disable prefetching
+	 * - `'intent'`: preload on mouseEnter/focus (default)
+	 * - `'render'`: preload as soon as the Link renders
+	 * - `'none'`: disable prefetching
 	 */
 	prefetch?: 'intent' | 'render' | 'none'
 }
@@ -44,7 +44,7 @@ export type LinkProps<P extends RegisteredPage = RegisteredPage> = [keyof Effect
 
 /**
  * Type-safe link component.
- * Uses page IDs for navigation — the router looks up the route pattern from the page registry.
+ * Uses page IDs for navigation: the router looks up the route pattern from the page registry.
  * For simple navigations, renders a native <a> and lets the Navigation API handle it.
  * Uses programmatic navigation when state, replace, resetScroll, or viewTransition is needed.
  *

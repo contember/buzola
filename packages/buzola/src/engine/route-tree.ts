@@ -61,7 +61,7 @@ export function buildRouteTree(configs: RouteConfig[], parentPath = ''): RouteTr
 interface FlatEntry {
 	/** The URL pattern for matching (e.g., "/project/:id/edit"). */
 	pattern: string
-	/** Layout chain from root to leaf — each becomes a RouteMatch. */
+	/** Layout chain from root to leaf: each becomes a RouteMatch. */
 	chain: RouteNode[]
 }
 
@@ -127,7 +127,7 @@ function insertIntoTrie(root: TrieNode, pattern: string, chain: RouteNode[]): vo
 		const segment = segments[i]
 
 		if (segment.startsWith(':') && (segment.endsWith('+') || segment.endsWith('*'))) {
-			// Catch-all segment — consumes all remaining segments
+			// Catch-all segment: consumes all remaining segments
 			paramNames.push(segment.slice(1, -1))
 			node.catchAllChild = { chain, paramNames }
 			return
@@ -150,7 +150,7 @@ function insertIntoTrie(root: TrieNode, pattern: string, chain: RouteNode[]): vo
 		}
 	}
 
-	// Terminal — route matches at this trie node
+	// Terminal: route matches at this trie node
 	node.route = { chain, paramNames }
 }
 

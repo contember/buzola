@@ -163,7 +163,7 @@ describe('buildFileRouteTree', () => {
 				__buzolaPage: true,
 				component: () => null,
 				paramsMeta: [{ name: 'userId', optional: false, array: false }],
-				// no .route() — should derive /users/detail from file path
+				// no .route(): should derive /users/detail from file path
 			},
 		})
 

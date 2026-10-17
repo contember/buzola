@@ -39,7 +39,7 @@ describe('createBrowserNavigationAdapter', () => {
 	/* The case actually seen in the wild: the getter returns the empty string on a
 	   document that is not fully active, which is what Safari handed us. `new
 	   URL('')` throws just as `new URL(null)` does, and it throws out of the
-	   `Router` constructor during render — a blank page, not a degraded route. An
+	   `Router` constructor during render: a blank page, not a degraded route. An
 	   empty string is falsy but not nullish, so this is the case `??` would miss. */
 	it('falls back to the document URL when the entry reports an empty URL', () => {
 		const adapter = withNavigation({ url: '' })
@@ -50,7 +50,7 @@ describe('createBrowserNavigationAdapter', () => {
 	/* `url` is also typed nullable: the getter returns null for entries whose
 	   document is not the current one and was fetched under a `no-referrer` or
 	   `origin` referrer policy. That branch needs `sameDocument` to be false, which
-	   `currentEntry` never is, so it should not be reachable through this call —
+	   `currentEntry` never is, so it should not be reachable through this call,
 	   but the type permits it and the fallback costs nothing. */
 	it('falls back to the document URL when the entry reports no URL', () => {
 		const adapter = withNavigation({ url: null })

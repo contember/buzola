@@ -12,7 +12,7 @@ function DefaultNotFound(): React.ReactElement {
 		},
 		isDev
 			? [
-				React.createElement('h1', { key: 'h' }, '404 — Page Not Found'),
+				React.createElement('h1', { key: 'h' }, '404: Page Not Found'),
 				React.createElement('p', { key: 'p1' }, `No route matches "${typeof window !== 'undefined' ? window.location.pathname : ''}".`),
 				React.createElement('p', {
 					key: 'p2',
@@ -74,7 +74,7 @@ export function Outlet({ fallback, errorFallback, notFound }: OutletProps): Reac
 	}, [state, depth, effectiveDepth, matches, match, routeContext.params])
 
 	if (!match) {
-		// At root depth with no matches — show 404
+		// At root depth with no matches: show 404
 		if (depth === 0 && matches.length === 0) {
 			if (notFound === null) return null
 			return (notFound ?? React.createElement(DefaultNotFound, null)) as React.ReactElement

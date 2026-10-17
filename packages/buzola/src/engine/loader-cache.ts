@@ -1,7 +1,7 @@
 /**
  * Global LRU cache for page loader data.
  * Shared across all page components to limit total memory usage.
- * Uses Map insertion order for LRU eviction — oldest entries are evicted first.
+ * Uses Map insertion order for LRU eviction: oldest entries are evicted first.
  */
 export class LoaderCache {
 	private cache = new Map<string, unknown>()

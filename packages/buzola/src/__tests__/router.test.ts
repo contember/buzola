@@ -307,7 +307,7 @@ describe('Router same-URL navigation', () => {
 		expect(count()).toBe(1)
 	})
 
-	it('does not invalidate when the URL changes — the href-keyed loader reloads on its own', () => {
+	it('does not invalidate when the URL changes: the href-keyed loader reloads on its own', () => {
 		const { router, count } = createCountingRouter('http://localhost/')
 
 		router.navigate('/list')
@@ -408,7 +408,7 @@ describe('Router focus reset', () => {
 		try {
 			const { router, captured } = createCapturingRouter('http://localhost/list')
 
-			// No route matches — the router bails out before intercepting
+			// No route matches: the router bails out before intercepting
 			router.navigate('/unmatched', { focusReset: 'manual' })
 			expect(captured).toHaveLength(0)
 

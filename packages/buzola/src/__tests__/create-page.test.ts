@@ -610,7 +610,7 @@ describe('redirect()', () => {
 			})
 			.render(() => null)
 
-		expect(typeof receivedRedirect).toBe('undefined') // not called yet — component not rendered
+		expect(typeof receivedRedirect).toBe('undefined') // not called yet: component not rendered
 		// Verify the type is correct by checking the function signature
 		expect(page.__buzolaPage).toBe(true)
 	})

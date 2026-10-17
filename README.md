@@ -51,7 +51,7 @@ export default defineConfig({
 **Bun:**
 
 ```ts
-// bunfig.toml preload — preload = ["./buzola.preload.ts"]
+// bunfig.toml preload: preload = ["./buzola.preload.ts"]
 // buzola.preload.ts
 import { buzolaPlugin } from '@buzola/bun-plugin'
 
@@ -198,7 +198,7 @@ createPage()
 ### Leaving the app
 
 A router built on the Navigation API sees every navigation on its origin, and a catch-all `_404`
-route matches all of them — including URLs the **server** owns, such as an auth handoff or a
+route matches all of them, including URLs the **server** owns, such as an auth handoff or a
 server-rendered page. Left alone, the router intercepts those and renders its own not-found page
 without a request ever reaching the server.
 
@@ -214,7 +214,7 @@ router.leaveApp('/api/auth/github/start')
 
 The release is recorded before the navigation is requested and is keyed to the resolved URL, so it
 cannot race the event or release a different navigation. Unlike `navigate()`, the URL is passed to
-the browser as given — no base path is prepended, because the target is outside the app.
+the browser as given: no base path is prepended, because the target is outside the app.
 
 ### Loading a navigation as a new document
 
@@ -237,7 +237,7 @@ new Router({ routes, adapter, shouldIntercept: () => !outdated })
 
 The function receives `{ destination, from, navigationType, userInitiated }`. It runs synchronously
 inside the `navigate` event, so it cannot await anything. It is asked only about navigations the router
-would otherwise intercept — not about unmatched URLs, `leaveApp()` or navigations the browser does not
+would otherwise intercept, not about unmatched URLs, `leaveApp()` or navigations the browser does not
 let it intercept. A declined navigation proceeds as follows:
 
 | Navigation                             | When declined                                                                                                                                                                                                                                   |

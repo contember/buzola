@@ -29,7 +29,7 @@ function useRouteContext() {
 /**
  * Type-safe navigation function.
  * Uses page IDs instead of URL patterns.
- * Persistent params are optional — resolved from current URL or fallback.
+ * Persistent params are optional: resolved from current URL or fallback.
  */
 type NavigateFn = <P extends RegisteredPage>(
 	to: P,
@@ -41,7 +41,7 @@ type NavigateFn = <P extends RegisteredPage>(
 
 /**
  * Hook to get a type-safe navigate function.
- * Navigates using page IDs — the router looks up the route pattern from the page registry.
+ * Navigates using page IDs: the router looks up the route pattern from the page registry.
  */
 export function useNavigate(): NavigateFn {
 	const router = useRouter()
