@@ -37,6 +37,12 @@ interface NavigateEvent extends Event {
 	scroll(): void
 }
 
+interface NavigationCurrentEntryChangeEvent extends Event {
+	/** null when the entry changed through `updateCurrentEntry()` rather than a navigation. */
+	navigationType: 'push' | 'replace' | 'reload' | 'traverse' | null
+	from: NavigationHistoryEntry
+}
+
 interface NavigationNavigateOptions {
 	state?: unknown
 	info?: unknown
@@ -60,8 +66,10 @@ interface Navigation extends EventTarget {
 	back(options?: { info?: unknown }): NavigationResult
 	forward(options?: { info?: unknown }): NavigationResult
 	addEventListener(type: 'navigate', listener: (event: NavigateEvent) => void): void
+	addEventListener(type: 'currententrychange', listener: (event: NavigationCurrentEntryChangeEvent) => void): void
 	addEventListener(type: string, listener: EventListener): void
 	removeEventListener(type: 'navigate', listener: (event: NavigateEvent) => void): void
+	removeEventListener(type: 'currententrychange', listener: (event: NavigationCurrentEntryChangeEvent) => void): void
 	removeEventListener(type: string, listener: EventListener): void
 }
 

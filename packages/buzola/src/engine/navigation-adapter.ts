@@ -27,10 +27,13 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 			userInitiated: event.userInitiated,
 			viewTransition,
 			whenCommitted(callback) {
-				// The next entry change is this navigation's commit, unless it was cancelled and another
+				// The next entry change a navigation makes is this one's commit, unless it was cancelled and another
 				// navigation got there first. The destination key tells them apart (it is set on traversals).
+				// updateCurrentEntry() also fires the event, with no navigation type, and commits nothing: code that
+				// saves the scroll position into the entry being left does exactly that while the traversal is pending.
 				const key = event.destination.key
-				const onChange = () => {
+				const onChange = (change: NavigationCurrentEntryChangeEvent) => {
+					if (change.navigationType === null) return
 					nav.removeEventListener('currententrychange', onChange)
 					if (nav.currentEntry?.key === key) callback()
 				}

@@ -1,7 +1,8 @@
 import './setup-dom.js'
 
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, mock } from 'bun:test'
 import { createBrowserNavigationAdapter } from '../engine/navigation-adapter.js'
+import type { BuzolaNavigateEvent } from '../engine/types.js'
 
 /* The Navigation API is not implemented by happy-dom, and the parts of it this
    adapter touches are small enough to stand in for directly. What matters here
@@ -65,5 +66,77 @@ describe('createBrowserNavigationAdapter', () => {
 		const adapter = withNavigation(null)
 
 		expect(adapter.getCurrentURL().href).toBe(window.location.href)
+	})
+})
+
+describe('createBrowserNavigationAdapter whenCommitted', () => {
+	/* A traversal the router does not intercept: the adapter has to spot the moment the browser
+	   makes the destination the current entry, among every other entry change. */
+	function traverseTo(key: string) {
+		const listeners = new Map<string, Set<(event: unknown) => void>>()
+		const navigation = {
+			currentEntry: { url: 'https://example.test/users', key: 'users' },
+			addEventListener(type: string, listener: (event: unknown) => void) {
+				if (!listeners.has(type)) listeners.set(type, new Set())
+				listeners.get(type)?.add(listener)
+			},
+			removeEventListener(type: string, listener: (event: unknown) => void) {
+				listeners.get(type)?.delete(listener)
+			},
+		}
+		Object.defineProperty(window, 'navigation', { value: navigation, writable: true, configurable: true })
+		const fire = (type: string, event: unknown) => {
+			for (const listener of [...(listeners.get(type) ?? [])]) listener(event)
+		}
+
+		let navigateEvent: BuzolaNavigateEvent | undefined
+		createBrowserNavigationAdapter().addEventListener('navigate', event => (navigateEvent = event))
+		fire('navigate', {
+			destination: { url: 'https://example.test/about', key, getState: () => undefined },
+			canIntercept: true,
+			navigationType: 'traverse',
+			userInitiated: true,
+			intercept() {},
+		})
+		const committed = mock(() => {})
+		navigateEvent?.whenCommitted?.(committed)
+
+		return {
+			committed,
+			/** The browser makes `entryKey` the current entry. */
+			change(entryKey: string, navigationType: string | null) {
+				if (navigationType !== null) navigation.currentEntry = { url: `https://example.test/${entryKey}`, key: entryKey }
+				fire('currententrychange', { navigationType })
+			},
+			pendingListeners: () => listeners.get('currententrychange')?.size ?? 0,
+		}
+	}
+
+	it('reports the commit once the destination becomes the current entry', () => {
+		const { committed, change, pendingListeners } = traverseTo('about')
+
+		change('about', 'traverse')
+
+		expect(committed).toHaveBeenCalledTimes(1)
+		expect(pendingListeners()).toBe(0)
+	})
+
+	it('is not fooled by updateCurrentEntry() on the entry being left', () => {
+		const { committed, change } = traverseTo('about')
+
+		change('users', null)
+		expect(committed).not.toHaveBeenCalled()
+
+		change('about', 'traverse')
+		expect(committed).toHaveBeenCalledTimes(1)
+	})
+
+	it('never reports a traversal that another navigation replaced, and stops listening', () => {
+		const { committed, change, pendingListeners } = traverseTo('about')
+
+		change('settings', 'push')
+
+		expect(committed).not.toHaveBeenCalled()
+		expect(pendingListeners()).toBe(0)
 	})
 })
