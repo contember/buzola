@@ -29,7 +29,7 @@ export type RegisteredPage = keyof BuzolaPageMap & string
 export type PageParams<P extends keyof BuzolaPageMap> = BuzolaPageMap[P]
 
 /**
- * Effective params for a page — persistent params become optional.
+ * Effective params for a page: persistent params become optional.
  * When BuzolaPersistentParams is empty (default), collapses to BuzolaPageMap[P].
  */
 export type EffectivePageParams<P extends keyof BuzolaPageMap> =
@@ -50,7 +50,7 @@ export interface StandardSchema<T = unknown> {
 	}
 }
 
-/** Route component — either a regular component or a lazy-loaded one. */
+/** Route component: either a regular component or a lazy-loaded one. */
 export type RouteComponent = ComponentType<Record<string, never>> | LazyExoticComponent<ComponentType<Record<string, never>>>
 
 /** Configuration for a single route. */
@@ -63,7 +63,7 @@ export interface RouteConfig {
 	component?: RouteComponent
 	/** Schema for validating search params (Standard Schema compatible). */
 	searchSchema?: StandardSchema
-	/** Preload function — triggers lazy component import ahead of navigation. */
+	/** Preload function: triggers lazy component import ahead of navigation. */
 	preload?: () => void
 	/** Child routes. */
 	children?: RouteConfig[]
@@ -71,7 +71,7 @@ export interface RouteConfig {
 	isLayout?: boolean
 	/** Whether this is an index route (renders at parent's exact path). */
 	isIndex?: boolean
-	/** Whether this is a pathless group (e.g., (auth) — no URL segment). */
+	/** Whether this is a pathless group (e.g., (auth), with no URL segment). */
 	isPathlessGroup?: boolean
 }
 
@@ -101,7 +101,7 @@ export interface RouteNode {
 	component?: RouteComponent
 	/** Search params schema. */
 	searchSchema?: StandardSchema
-	/** Preload function — triggers lazy component import ahead of navigation. */
+	/** Preload function: triggers lazy component import ahead of navigation. */
 	preload?: () => void
 	/** Whether this is a layout node (renders children via Outlet). */
 	isLayout: boolean
@@ -113,7 +113,7 @@ export interface RouteNode {
 
 /** A node in the segment trie used for URL matching. */
 export interface TrieNode {
-	/** Static children — exact segment match via Map lookup (O(1)). */
+	/** Static children: exact segment match via Map lookup (O(1)). */
 	staticChildren: Map<string, TrieNode>
 	/**
 	 * Dynamic child: matches any single segment. It carries no param name, because routes sharing this
@@ -174,8 +174,8 @@ export interface NavigateOptions {
 	resetScroll?: boolean
 	/**
 	 * Whether the browser moves focus after navigation.
-	 * Defaults to `manual` when only the search string changes — so search boxes, filters and
-	 * pagination controls keep the caret — and to `after-transition` when the path or the hash
+	 * Defaults to `manual` when only the search string changes (so search boxes, filters and
+	 * pagination controls keep the caret), and to `after-transition` when the path or the hash
 	 * changes, so fragment links move focus to the section they target.
 	 */
 	focusReset?: 'after-transition' | 'manual'

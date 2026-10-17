@@ -20,7 +20,7 @@ function matchTrie(
 	values: string[],
 	pathname: string,
 ): RouteMatch[] | null {
-	// All segments consumed — check if this trie node has a terminal route
+	// All segments consumed: check if this trie node has a terminal route
 	if (index === segments.length) {
 		if (node.route) {
 			return buildMatchChain(node.route, values, pathname)
@@ -30,20 +30,20 @@ function matchTrie(
 
 	const segment = segments[index]
 
-	// 1. Try static child first — O(1) Map lookup, always most specific
+	// 1. Try static child first: O(1) Map lookup, always most specific
 	const staticChild = node.staticChildren.get(segment)
 	if (staticChild) {
 		const result = matchTrie(staticChild, segments, index + 1, values, pathname)
 		if (result) return result
 	}
 
-	// 2. Try dynamic child — matches any single segment
+	// 2. Try dynamic child: matches any single segment
 	if (node.dynamicChild) {
 		const result = matchTrie(node.dynamicChild, segments, index + 1, [...values, decodeURIComponent(segment)], pathname)
 		if (result) return result
 	}
 
-	// 3. Try catch-all child — consumes all remaining segments
+	// 3. Try catch-all child: consumes all remaining segments
 	if (node.catchAllChild) {
 		const remaining = segments.slice(index).map(s => decodeURIComponent(s)).join('/')
 		return buildMatchChain(node.catchAllChild, [...values, remaining], pathname)

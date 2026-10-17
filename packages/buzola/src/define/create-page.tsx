@@ -156,7 +156,7 @@ function combineLoaders(loaders: LoaderFn[]): LoaderFn | undefined {
 }
 
 /**
- * Follow a loader redirect, unless it points at the URL the page is already on —
+ * Follow a loader redirect, unless it points at the URL the page is already on:
  * that navigation re-runs the loader, which returns the same redirect, forever.
  */
 function followRedirect(router: Router | null, target: BuzolaRedirect): void {

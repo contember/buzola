@@ -74,7 +74,7 @@ describe('PageLoaderState', () => {
 	})
 
 	describe('invalidation (cache key change)', () => {
-		it('with stale data — returns stale data with isLoading and starts background fetch', () => {
+		it('with stale data: returns stale data with isLoading and starts background fetch', () => {
 			const state = createState()
 			resolveCtx(state, { cacheKey: 'k:0' })
 			state.commitResult('stale-data')
@@ -93,12 +93,12 @@ describe('PageLoaderState', () => {
 			expect(bgLoad).toBeDefined()
 		})
 
-		it('without stale data — returns suspend instruction', () => {
+		it('without stale data: returns suspend instruction', () => {
 			const state = createState()
 			const promise = Promise.resolve('data')
 			const instruction = resolveCtx(state, { cacheKey: 'k:0', load: () => promise })
 
-			// No commitResult called — no stale data
+			// No commitResult called: no stale data
 			const second = resolveCtx(state, { cacheKey: 'k:1', load: () => Promise.resolve('new') })
 			expect(second.action).toBe('suspend')
 		})
@@ -149,7 +149,7 @@ describe('PageLoaderState', () => {
 				onBackgroundSettled: settled1,
 			})
 
-			// Immediately invalidate again — supersedes the first background fetch
+			// Immediately invalidate again: supersedes the first background fetch
 			state.commitBackgroundResult('stale') // commit so hasResolved stays true
 			const settled2 = mock(() => {})
 			resolveCtx(state, {
@@ -200,7 +200,7 @@ describe('PageLoaderState', () => {
 			resolveCtx(state, { url: 'http://localhost/a', cacheKey: 'a:0', loaderCache: cache })
 			state.commitResult('data-a')
 
-			// Navigate to B — should save A's data to cache
+			// Navigate to B: should save A's data to cache
 			resolveCtx(state, { url: 'http://localhost/b', cacheKey: 'b:0', loaderCache: cache })
 
 			expect(cache.size).toBe(1)
@@ -218,7 +218,7 @@ describe('PageLoaderState', () => {
 			resolveCtx(state, { url: 'http://localhost/b', cacheKey: 'b:0', loaderCache: cache })
 			state.commitResult('data-b')
 
-			// Navigate back to A — should restore from cache
+			// Navigate back to A: should restore from cache
 			const instruction = resolveCtx(state, {
 				url: 'http://localhost/a',
 				cacheKey: 'a:0',
@@ -229,11 +229,11 @@ describe('PageLoaderState', () => {
 			expect(instruction.action).toBe('render')
 			if (instruction.action === 'render') {
 				expect(instruction.data).toBe('data-a')
-				expect(instruction.isLoading).toBe(true) // SWR — stale data + background reload
+				expect(instruction.isLoading).toBe(true) // SWR: stale data + background reload
 			}
 		})
 
-		it('keeps data as stale when only the query changes — no suspend', () => {
+		it('keeps data as stale when only the query changes: no suspend', () => {
 			const cache = new LoaderCache(10)
 			const state = createState()
 
@@ -301,7 +301,7 @@ describe('PageLoaderState', () => {
 			// Load A without committing (no stale data to cache)
 			resolveCtx(state, { url: 'http://localhost/a', cacheKey: 'a:0', loaderCache: cache })
 
-			// Navigate to B — no cache for B
+			// Navigate to B: no cache for B
 			const instruction = resolveCtx(state, {
 				url: 'http://localhost/b',
 				cacheKey: 'b:0',
@@ -317,7 +317,7 @@ describe('PageLoaderState', () => {
 			const cache = new LoaderCache(10)
 			const state1 = createState()
 
-			// First mount — load and dispose
+			// First mount: load and dispose
 			resolveCtx(state1, { url: 'http://localhost/a', cacheKey: 'a:0', loaderCache: cache })
 			state1.commitResult('cached-data')
 			state1.dispose(cache) // saves to cache
@@ -386,13 +386,13 @@ describe('PageLoaderState', () => {
 	})
 
 	describe('no loader cache', () => {
-		it('works without loaderCache — no stale caching', () => {
+		it('works without loaderCache: no stale caching', () => {
 			const state = createState()
 
 			resolveCtx(state, { url: 'http://localhost/a', cacheKey: 'a:0' })
 			state.commitResult('data-a')
 
-			// URL change without cache — no restore
+			// URL change without cache: no restore
 			const instruction = resolveCtx(state, { url: 'http://localhost/b', cacheKey: 'b:0' })
 			expect(instruction.action).toBe('suspend')
 		})

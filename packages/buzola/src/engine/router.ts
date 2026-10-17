@@ -47,7 +47,7 @@ export interface RouterOptions {
 	loaderCacheSize?: number
 	/**
 	 * Decides, per navigation, whether the router handles it in the current document.
-	 * Return `false` to have the browser load the destination as a new document instead —
+	 * Return `false` to have the browser load the destination as a new document instead,
 	 * e.g. to pick up a newly deployed build on the next in-app navigation.
 	 *
 	 * Offered every push, replace and traverse the router would otherwise intercept, except
@@ -146,7 +146,7 @@ export class Router {
 	 */
 	start(): () => void {
 		const handler = (event: BuzolaNavigateEvent) => {
-			// Consume the pending options before any early return — they belong to the
+			// Consume the pending options before any early return: they belong to the
 			// navigation that armed them and must not leak into the next one.
 			const scrollBehavior = this.pendingScrollBehavior
 			const explicitFocusReset = this.pendingFocusReset
@@ -192,7 +192,7 @@ export class Router {
 
 			const currentNavId = ++this.navigationId
 			const useViewTransition = event.viewTransition || this.viewTransitions
-			// Query-only navigations stay on the same page — keep focus where the user left it
+			// Query-only navigations stay on the same page, so keep focus where the user left it
 			// (search boxes, filters, pagination). Path changes keep the browser's focus reset,
 			// and so do fragment changes, which must move focus to the targeted section.
 			const focusReset = explicitFocusReset
@@ -218,7 +218,7 @@ export class Router {
 						pendingLocation: url,
 					})
 
-					// A newer navigation has started — abandon this one
+					// A newer navigation has started, so abandon this one
 					if (this.navigationId !== currentNavId) return
 
 					// Perform the DOM update
@@ -231,7 +231,7 @@ export class Router {
 							pendingLocation: undefined,
 							navigationState: this.adapter.getState(),
 						})
-						// Going to the URL we are already on is still a navigation — a browser
+						// Going to the URL we are already on is still a navigation: a browser
 						// re-requests the document for it. Loader data is keyed by href, so it
 						// would silently keep serving stale data without an explicit invalidation.
 						if (previousHref === url.href) {
@@ -284,7 +284,7 @@ export class Router {
 	}
 
 	/**
-	 * Hold the navigation while the blockers run and, if they allow it, reload the current entry —
+	 * Hold the navigation while the blockers run and, if they allow it, reload the current entry,
 	 * which is already the navigation's destination, because an intercepted navigation commits before
 	 * its handler runs.
 	 */
@@ -309,7 +309,7 @@ export class Router {
 	}
 
 	/**
-	 * Hand one navigation to the browser instead of intercepting it, for a URL the SERVER owns —
+	 * Hand one navigation to the browser instead of intercepting it, for a URL the SERVER owns:
 	 * an auth handoff, a file download, a server-rendered page that happens to share this origin.
 	 *
 	 * The Navigation API offers no way for a caller to mark a navigation un-interceptable:
@@ -319,7 +319,7 @@ export class Router {
 	 *
 	 * The release is recorded BEFORE the navigation is requested and is keyed to the resolved URL, so
 	 * it cannot race the event or release some other navigation. Unlike `navigate`, the URL is passed
-	 * to the browser as given — no base path is prepended, because the target is outside the app.
+	 * to the browser as given: no base path is prepended, because the target is outside the app.
 	 */
 	leaveApp(url: string): void {
 		this.releasedURL = new URL(url, this.adapter.getCurrentURL()).href
@@ -328,7 +328,7 @@ export class Router {
 
 	/**
 	 * Navigate programmatically.
-	 * The `to` path should not include the base path — it is prepended automatically.
+	 * The `to` path should not include the base path. It is prepended automatically.
 	 */
 	navigate(to: string, options?: NavigateOptions): void {
 		if (options?.resetScroll === false) {
@@ -409,7 +409,7 @@ export class Router {
 					missing.push(paramName)
 				} else {
 					if (isCatchAll) {
-						// Catch-all values may contain slashes — insert raw
+						// Catch-all values may contain slashes: insert raw
 						result.push(value)
 					} else {
 						result.push(encodeURIComponent(value))
@@ -533,7 +533,7 @@ export class Router {
 	}
 
 	/**
-	 * Dispose the router — clear all subscribers and reset state.
+	 * Dispose the router: clear all subscribers and reset state.
 	 */
 	dispose(): void {
 		this.stopFn?.()

@@ -20,7 +20,7 @@ export interface GenerateOptions {
 /**
  * Generate the `buzola.gen.ts` route module from a routes directory.
  *
- * Works standalone (no Vite required) — uses native `import()` as the
+ * Works standalone (no Vite required) and uses native `import()` as the
  * default module loader. Pass a custom `moduleLoader` to integrate with
  * Vite's `ssrLoadModule` or other bundlers.
  *

@@ -8,7 +8,7 @@ export type LoaderInstruction =
 	| { action: 'suspend'; promise: Promise<unknown> }
 
 export interface LoaderResolveContext {
-	/** Current URL href — used for stale cache keying */
+	/** Current URL href: used for stale cache keying */
 	currentUrlHref: string
 	/** Cache key that changes on URL change or invalidation */
 	cacheKey: string
@@ -31,7 +31,7 @@ let nextId = 0
 /**
  * Manages loader data lifecycle outside of React's render cycle.
  *
- * This state survives React Suspense retries — when use() suspends, React
+ * This state survives React Suspense retries. When use() suspends, React
  * discards uncommitted hook state (useRef, useState, useMemo). Closure/instance
  * state is preserved, preventing infinite suspend loops from promise recreation.
  *
@@ -43,7 +43,7 @@ export class PageLoaderState {
 	private activeCacheKey: string | null = null
 	private activePromise: Promise<unknown> | null = null
 	private activeResolvedData: unknown
-	/** URL the currently held data was loaded for — data is cached under this href, not the active one. */
+	/** URL the currently held data was loaded for: data is cached under this href, not the active one. */
 	private resolvedUrlHref: string | null = null
 	private hasResolved = false
 	private pendingBackgroundKey: string | null = null
@@ -62,7 +62,7 @@ export class PageLoaderState {
 
 		this.handleUrlChange(currentUrlHref, loaderCache)
 
-		// ─── Same cache key — return current state ─────
+		// ─── Same cache key: return current state ─────
 		if (this.activeCacheKey === cacheKey) {
 			if (this.pendingBackgroundKey === cacheKey) {
 				return { action: 'render', data: this.activeResolvedData, isLoading: true }
@@ -110,14 +110,14 @@ export class PageLoaderState {
 		this.hasResolved = true
 	}
 
-	/** Commit background SWR success — update data and clear pending flag */
+	/** Commit background SWR success: update data and clear pending flag */
 	commitBackgroundResult(data: unknown): void {
 		this.activeResolvedData = data
 		this.resolvedUrlHref = this.activeUrlHref
 		this.pendingBackgroundKey = null
 	}
 
-	/** Mark background load as failed — next render will suspend with rejected promise */
+	/** Mark background load as failed: next render will suspend with rejected promise */
 	commitBackgroundError(): void {
 		this.hasResolved = false
 		this.pendingBackgroundKey = null
@@ -141,7 +141,7 @@ export class PageLoaderState {
 
 	private handleUrlChange(currentUrlHref: string, loaderCache: LoaderCache | undefined): void {
 		if (this.activeUrlHref !== null && this.activeUrlHref !== currentUrlHref) {
-			// URL changed — save the held data to stale cache under the href it was loaded for
+			// URL changed: save the held data to stale cache under the href it was loaded for
 			if (loaderCache && this.hasResolved && this.activeResolvedData !== undefined && this.resolvedUrlHref) {
 				this.saveToStaleCache(loaderCache, this.resolvedUrlHref, this.activeResolvedData)
 			}
@@ -152,7 +152,7 @@ export class PageLoaderState {
 				this.resolvedUrlHref = currentUrlHref
 				this.hasResolved = true
 			} else if (!isSamePath(this.activeUrlHref, currentUrlHref)) {
-				// Different path — the held data describes another page, drop it and suspend
+				// Different path: the held data describes another page, so drop it and suspend
 				this.hasResolved = false
 				this.activeResolvedData = undefined
 				this.resolvedUrlHref = null
@@ -161,7 +161,7 @@ export class PageLoaderState {
 			// keep the data as stale so resolve() serves it while the new query loads.
 			this.pendingBackgroundKey = null
 		} else if (this.activeUrlHref === null && loaderCache) {
-			// Remount — try to restore from stale cache
+			// Remount: try to restore from stale cache
 			const cached = this.restoreFromStaleCache(loaderCache, currentUrlHref)
 			if (cached.hit) {
 				this.activeResolvedData = cached.value

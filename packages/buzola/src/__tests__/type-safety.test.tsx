@@ -29,7 +29,7 @@ describe('createPage route type safety', () => {
 	})
 
 	it('rejects dynamic route without params', () => {
-		// @ts-expect-error — :id in route but no .params() defined
+		// @ts-expect-error: :id in route but no .params() defined
 		const _page = createPage().route('/users/:id').render(() => null)
 		expect(true).toBe(true)
 	})
@@ -45,7 +45,7 @@ describe('createPage route type safety', () => {
 	it('rejects dynamic route when param is not in schema', () => {
 		const _page = createPage()
 			.params(mockSchema<{ userId: string }>())
-			// @ts-expect-error — :id is not a key of { userId: string }
+			// @ts-expect-error: :id is not a key of { userId: string }
 			.route('/users/:id')
 			.render(({ params }) => null)
 		expect(true).toBe(true)
@@ -62,7 +62,7 @@ describe('createPage route type safety', () => {
 	it('rejects when one route param is missing from schema', () => {
 		const _page = createPage()
 			.params(mockSchema<{ userId: string }>())
-			// @ts-expect-error — :postId is not in { userId: string }
+			// @ts-expect-error: :postId is not in { userId: string }
 			.route('/users/:userId/posts/:postId')
 			.render(({ params }) => null)
 		expect(true).toBe(true)
@@ -97,14 +97,14 @@ describe('createPage catch type safety', () => {
 
 	it('no .catch() after .catch()', () => {
 		const withCatch = createPage().catch(({ error }) => <div>{error.message}</div>)
-		// @ts-expect-error — .catch() should not be available after .catch()
+		// @ts-expect-error: .catch() should not be available after .catch()
 		withCatch.catch
 		expect(true).toBe(true)
 	})
 
 	it('no .loader() after .catch()', () => {
 		const withCatch = createPage().catch(({ error }) => <div>{error.message}</div>)
-		// @ts-expect-error — .loader() should not be available after .catch()
+		// @ts-expect-error: .loader() should not be available after .catch()
 		withCatch.loader
 		expect(true).toBe(true)
 	})
@@ -125,7 +125,7 @@ describe('createPage catch type safety', () => {
 	it('.catch() handler has empty params when no schema defined', () => {
 		const _page = createPage()
 			.catch(({ params }) => {
-				// @ts-expect-error — no params defined, accessing unknown key
+				// @ts-expect-error: no params defined, accessing unknown key
 				params.anything
 				return null
 			})
@@ -144,7 +144,7 @@ describe('LinkProps type safety', () => {
 	})
 
 	it('static page rejects params', () => {
-		// @ts-expect-error — static page should not accept params
+		// @ts-expect-error: static page should not accept params
 		const _a: LinkProps<'about'> = { to: 'about', params: { foo: 'bar' } }
 		expect(true).toBe(true)
 	})
@@ -152,13 +152,13 @@ describe('LinkProps type safety', () => {
 	it('dynamic page requires params', () => {
 		const _a: LinkProps<'users/detail'> = { to: 'users/detail', params: { userId: '1' } }
 
-		// @ts-expect-error — missing required params
+		// @ts-expect-error: missing required params
 		const _b: LinkProps<'users/detail'> = { to: 'users/detail' }
 		expect(true).toBe(true)
 	})
 
 	it('dynamic page requires correct param names', () => {
-		// @ts-expect-error — wrong param name
+		// @ts-expect-error: wrong param name
 		const _a: LinkProps<'users/detail'> = { to: 'users/detail', params: { id: '1' } }
 		expect(true).toBe(true)
 	})
@@ -171,14 +171,14 @@ describe('LinkProps type safety', () => {
 
 		const _b: LinkProps<'users/posts'> = {
 			to: 'users/posts',
-			// @ts-expect-error — missing postId
+			// @ts-expect-error: missing postId
 			params: { userId: '1' },
 		}
 		expect(true).toBe(true)
 	})
 
 	it('rejects unregistered pages', () => {
-		// @ts-expect-error — page not in BuzolaPageMap
+		// @ts-expect-error: page not in BuzolaPageMap
 		const _a: LinkProps<'unknown'> = { to: 'unknown' }
 		expect(true).toBe(true)
 	})
@@ -196,7 +196,7 @@ describe('Link JSX generic inference', () => {
 	})
 
 	it('rejects params on static page', () => {
-		// @ts-expect-error — static page should not accept params
+		// @ts-expect-error: static page should not accept params
 		const _el = <Link to="about" params={{ foo: 'bar' }}>About</Link>
 		expect(true).toBe(true)
 	})
@@ -204,13 +204,13 @@ describe('Link JSX generic inference', () => {
 	it('requires params on dynamic page', () => {
 		const _el = <Link to="users/detail" params={{ userId: '1' }}>User</Link>
 
-		// @ts-expect-error — missing required params
+		// @ts-expect-error: missing required params
 		const _el2 = <Link to="users/detail">User</Link>
 		expect(true).toBe(true)
 	})
 
 	it('rejects wrong param names', () => {
-		// @ts-expect-error — wrong param name
+		// @ts-expect-error: wrong param name
 		const _el = <Link to="users/detail" params={{ id: '1' }}>User</Link>
 		expect(true).toBe(true)
 	})
@@ -218,13 +218,13 @@ describe('Link JSX generic inference', () => {
 	it('requires all params for multi-param page', () => {
 		const _ok = <Link to="users/posts" params={{ userId: '1', postId: '2' }}>Post</Link>
 
-		// @ts-expect-error — missing postId
+		// @ts-expect-error: missing postId
 		const _bad = <Link to="users/posts" params={{ userId: '1' }}>Post</Link>
 		expect(true).toBe(true)
 	})
 
 	it('rejects unregistered pages', () => {
-		// @ts-expect-error — page not in BuzolaPageMap
+		// @ts-expect-error: page not in BuzolaPageMap
 		const _el = <Link to="nope">Nope</Link>
 		expect(true).toBe(true)
 	})
@@ -258,7 +258,7 @@ describe('NavigateFn type safety', () => {
 	})
 
 	it('static page rejects params', () => {
-		// @ts-expect-error — static page should not accept params
+		// @ts-expect-error: static page should not accept params
 		noop('home', { params: { foo: 'bar' } })
 		expect(true).toBe(true)
 	})
@@ -266,19 +266,19 @@ describe('NavigateFn type safety', () => {
 	it('dynamic page requires options with params', () => {
 		noop('users/detail', { params: { userId: '1' } })
 
-		// @ts-expect-error — missing required options with params
+		// @ts-expect-error: missing required options with params
 		noop('users/detail')
 		expect(true).toBe(true)
 	})
 
 	it('dynamic page requires correct param names', () => {
-		// @ts-expect-error — wrong param name (id instead of userId)
+		// @ts-expect-error: wrong param name (id instead of userId)
 		noop('users/detail', { params: { id: '1' } })
 		expect(true).toBe(true)
 	})
 
 	it('dynamic page rejects params passed directly as options (without params wrapper)', () => {
-		// @ts-expect-error — { userId: '1' } is not valid, must be { params: { userId: '1' } }
+		// @ts-expect-error: { userId: '1' } is not valid, must be { params: { userId: '1' } }
 		noop('users/detail', { userId: '1' })
 		expect(true).toBe(true)
 	})
@@ -286,13 +286,13 @@ describe('NavigateFn type safety', () => {
 	it('multi-param page requires all params', () => {
 		noop('users/posts', { params: { userId: '1', postId: '2' } })
 
-		// @ts-expect-error — missing postId
+		// @ts-expect-error: missing postId
 		noop('users/posts', { params: { userId: '1' } })
 		expect(true).toBe(true)
 	})
 
 	it('rejects unregistered pages', () => {
-		// @ts-expect-error — page not in BuzolaPageMap
+		// @ts-expect-error: page not in BuzolaPageMap
 		noop('unknown')
 		expect(true).toBe(true)
 	})

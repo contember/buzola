@@ -91,7 +91,7 @@ describe('LoaderCache', () => {
 		cache.set('a', 1)
 		cache.set('b', 2)
 
-		// Update 'a' — should move to most recent
+		// Update 'a': should move to most recent
 		cache.set('a', 10)
 
 		// Now 'b' is the oldest

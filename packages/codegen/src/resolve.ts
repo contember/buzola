@@ -66,7 +66,7 @@ export function resolveVirtualModuleId(name: string | undefined): VirtualModuleI
 }
 
 /**
- * Build the virtual module source — re-exports `routes` and `pageRegistry`
+ * Build the virtual module source, which re-exports `routes` and `pageRegistry`
  * from the generated file at `outputPath`.
  */
 export function buildVirtualSource(outputPath: string): string {

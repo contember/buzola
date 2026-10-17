@@ -158,13 +158,13 @@ export function createMemoryNavigationAdapter(
 			void interceptHandler().then(
 				() => {},
 				(error) => {
-					// Guard aborts are expected — rethrow unexpected errors
+					// Guard aborts are expected: rethrow unexpected errors
 					if (error instanceof Error && error.name === 'NavigationAbortedError') return
 					throw error
 				},
 			)
 		} else {
-			// No interception — commit immediately
+			// No interception: commit immediately
 			commitNavigation(false)
 		}
 	}

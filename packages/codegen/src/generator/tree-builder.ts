@@ -210,7 +210,7 @@ function buildTreeFromEntries(entries: RouteEntry[]): FileRouteNode[] {
 
 	for (const layout of layouts) {
 		if (layout.pathlessGroupId) {
-			// Pathless group layout — find parent by walking layoutRefs, respecting pathless group chain
+			// Pathless group layout: find parent by walking layoutRefs, respecting pathless group chain
 			const parent = findParentForPathlessGroupLayout(layoutRefs, layout)
 			const node: FileRouteNode = {
 				segment: '',
@@ -233,7 +233,7 @@ function buildTreeFromEntries(entries: RouteEntry[]): FileRouteNode[] {
 			root.isLayout = true
 			root.filePath = layout.filePath
 		} else {
-			// Regular layout — find parent by prefix matching
+			// Regular layout: find parent by prefix matching
 			const parent = findDeepestLayoutParent(layoutRefs, layout.treePosition, layout.pathlessGroups)
 			const segment = computeSegmentFromParent(parent.node.fullPath, layout.treePosition)
 			const node: FileRouteNode = {
@@ -318,13 +318,13 @@ function findParentForPathlessGroupLayout(layoutRefs: LayoutRef[], entry: RouteE
 	const thisGroupIndex = groupChain.indexOf(entry.pathlessGroupId!)
 
 	if (thisGroupIndex > 0) {
-		// Has a parent pathless group — find it
+		// Has a parent pathless group: find it
 		const parentGroupId = groupChain[thisGroupIndex - 1]
 		const parentRef = layoutRefs.find(r => r.pathlessGroupId === parentGroupId)
 		if (parentRef) return parentRef
 	}
 
-	// First pathless group in chain (or parent not found) — find the deepest regular layout at prefix
+	// First pathless group in chain (or parent not found): find the deepest regular layout at prefix
 	let best = layoutRefs[0] // root
 	for (const ref of layoutRefs) {
 		if (ref.pathlessGroupId) continue // skip other pathless groups
@@ -418,7 +418,7 @@ function checkCollision(siblings: FileRouteNode[], segment: string, filePath: st
 		? `named export '${exportName}' in '${filePath}'`
 		: `'${filePath}'`
 
-	throw new Error(`Route collision: ${newDesc} conflicts with ${existingDesc} — both resolve to segment '${segment}'`)
+	throw new Error(`Route collision: ${newDesc} conflicts with ${existingDesc}. Both resolve to segment '${segment}'`)
 }
 
 function sortChildren(node: FileRouteNode): void {

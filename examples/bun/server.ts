@@ -4,7 +4,7 @@ const dist = './dist'
 const indexHtml = Bun.file(path.join(dist, 'index.html'))
 
 if (!await indexHtml.exists()) {
-	console.error('dist/index.html not found — run "bun run build" first.')
+	console.error('dist/index.html not found. Run "bun run build" first.')
 	process.exit(1)
 }
 
@@ -20,4 +20,4 @@ const server = Bun.serve({
 	},
 })
 
-console.log(`Buzola Bun example — ${server.url}`)
+console.log(`Buzola Bun example running at ${server.url}`)

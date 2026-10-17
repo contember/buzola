@@ -11,7 +11,7 @@ for (const key of Object.getOwnPropertyNames(window)) {
 			configurable: true,
 		})
 	} catch {
-		// Some properties can't be set — skip them
+		// Some properties can't be set: skip them
 	}
 }
 

@@ -563,7 +563,7 @@ describe('Page loaders', () => {
 		})
 		await flushNav()
 
-		// No Suspense fallback — the stale render stays up until the reload lands
+		// No Suspense fallback: the stale render stays up until the reload lands
 		expect(container.textContent).toBe('loads:1')
 
 		await act(async () => {
@@ -672,7 +672,7 @@ describe('Outlet', () => {
 			{
 				path: '/admin',
 				isLayout: true,
-				// No component — should be skipped
+				// No component: should be skipped
 				children: [
 					{ path: '/dashboard', component: () => <div>Dashboard</div> },
 				],
@@ -952,7 +952,7 @@ describe('useBlocker', () => {
 
 		expect(getByTestId('state').textContent).toBe('idle')
 
-		// Try to navigate — should be blocked
+		// Try to navigate: should be blocked
 		router.navigate('/about')
 		await flushNav()
 
@@ -1123,7 +1123,7 @@ describe('ErrorBoundary', () => {
 
 		expect(container.textContent).toContain('Route error: boom')
 
-		// Change resetKey and stop throwing — should reset
+		// Change resetKey and stop throwing: should reset
 		rerender(
 			<ErrorBoundary resetKey="b">
 				<MaybeThrow shouldThrow={false} />

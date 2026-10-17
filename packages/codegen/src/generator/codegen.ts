@@ -89,7 +89,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 	lines.push('}')
 	lines.push('')
 
-	lines.push('// Page registry — page ID → route pattern')
+	lines.push('// Page registry: page ID → route pattern')
 	lines.push('export const pageRegistry: Record<string, string> = {')
 	for (const page of pages) {
 		lines.push(`  '${page.pageId}': '${page.routePattern}',`)
