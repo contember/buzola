@@ -39,7 +39,8 @@ export function buzolaPlugin(options: BuzolaPluginOptions = {}): Plugin {
 		enforce: 'pre',
 
 		async configResolved(config) {
-			baseOptions = await resolveOptions({ ...options, root: config.root })
+			// The hot update code is dead in a build, where `import.meta.hot` is undefined, so dev and build write the same file.
+			baseOptions = { ...await resolveOptions({ ...options, root: config.root }), hot: 'vite' }
 			virtualSource = buildVirtualSource(baseOptions.outputPath)
 		},
 

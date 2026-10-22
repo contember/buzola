@@ -15,6 +15,9 @@ export class NavigationAbortedError extends Error {
 
 export type RouterSubscriber = (state: RouterState) => void
 
+/** Routers not yet disposed, so a hot update can find the ones that render a replaced route tree. */
+const liveRouters = new Set<Router>()
+
 export interface RouterOptions {
 	/** Route tree (segment trie). */
 	routes: RouteTree
@@ -81,7 +84,18 @@ export class Router {
 	private pendingFocusReset: 'after-transition' | 'manual' | undefined
 	private readonly _loaderCache: LoaderCache | undefined
 
+	/**
+	 * Hot module replacement: every live router that renders `previous` switches to `next`. Generated route modules
+	 * call this after a page module changed.
+	 */
+	static replaceRoutes(previous: RouteTree, next: RouteTree): void {
+		for (const router of liveRouters) {
+			if (router.routes === previous) router.updateRoutes(next)
+		}
+	}
+
 	constructor(options: RouterOptions) {
+		liveRouters.add(this)
 		this.routes = options.routes
 		this.adapter = options.adapter
 		this.viewTransitions = options.viewTransitions ?? false
@@ -577,6 +591,7 @@ export class Router {
 	 * Dispose the router: clear all subscribers and reset state.
 	 */
 	dispose(): void {
+		liveRouters.delete(this)
 		this.stopFn?.()
 		this.stopFn = undefined
 		this.subscribers.clear()

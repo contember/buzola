@@ -15,6 +15,8 @@ export interface GenerateOptions {
 	moduleLoader?: ModuleLoader
 	/** When true, return `false` instead of throwing if `routesDir` is missing. */
 	optional?: boolean
+	/** Hot module replacement code for this bundler; see `CodegenOptions.hot`. */
+	hot?: 'vite'
 }
 
 /**
@@ -31,7 +33,7 @@ export interface GenerateOptions {
  * @returns `true` if the output file was written (content changed), `false` otherwise.
  */
 export async function generate(options: GenerateOptions): Promise<boolean> {
-	const { routesDir, outputPath, persistentParams, moduleLoader = defaultModuleLoader, optional = false } = options
+	const { routesDir, outputPath, persistentParams, moduleLoader = defaultModuleLoader, optional = false, hot } = options
 
 	if (!fs.existsSync(routesDir)) {
 		if (optional) return false
@@ -40,7 +42,7 @@ export async function generate(options: GenerateOptions): Promise<boolean> {
 
 	const files = scanRouteFiles(routesDir)
 	const tree = await buildFileRouteTree(files, moduleLoader)
-	const code = generateRouteModule({ tree, routesDir, outputPath, persistentParams })
+	const code = generateRouteModule({ tree, routesDir, outputPath, persistentParams, hot })
 
 	return writeIfChanged(outputPath, code)
 }

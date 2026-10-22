@@ -67,6 +67,31 @@ describe('generateRouteModule', () => {
 		expect(output).not.toContain('BuzolaPersistentParams')
 	})
 
+	it('accepts its own Vite hot updates and hands the new route tree to the router', () => {
+		const output = generateRouteModule({
+			tree: [],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+			hot: 'vite',
+		})
+
+		expect(output).toContain('/// <reference types="vite/client" />')
+		expect(output).toContain(`import { buildRouteTree, Router } from '@buzola/router';`)
+		expect(output).toContain('import.meta.hot.accept((next) => {')
+		expect(output).toContain('Router.replaceRoutes(routes, next.routes);')
+	})
+
+	it('emits no hot update code without a bundler', () => {
+		const output = generateRouteModule({
+			tree: [],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+		})
+
+		expect(output).not.toContain('import.meta.hot')
+		expect(output).not.toContain('vite/client')
+	})
+
 	it('emits BuzolaPageMap interface', () => {
 		const output = generateRouteModule({
 			tree: [],

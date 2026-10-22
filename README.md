@@ -17,6 +17,7 @@ Buzola uses a **page-centric approach** -- each page declares itself via `create
 - **Persistent params** -- parameters that carry across navigations
 - **Navigation blocking** -- prevent navigation when there are unsaved changes
 - **Prefetching** -- preload page data on hover intent or render
+- **Hot page updates (Vite)** -- a changed page swaps in place; the app keeps its state instead of reloading
 
 ## Installation
 
