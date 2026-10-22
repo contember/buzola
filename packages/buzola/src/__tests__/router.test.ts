@@ -22,6 +22,35 @@ function createRouter(
 }
 
 describe('Router', () => {
+	it('replaceRoutes swaps the tree of every live router that renders it, and no other', () => {
+		function NextPage() {
+			return null
+		}
+		const adapter = () => createMemoryNavigationAdapter({ initialURL: 'http://localhost/' })
+		const routes = buildRouteTree([{ path: '/', component: dummyComponent, isIndex: true }])
+		const router = new Router({ routes, adapter: adapter() })
+		const other = new Router({ routes: buildRouteTree([{ path: '/', component: dummyComponent, isIndex: true }]), adapter: adapter() })
+		const otherMatches = other.getState().matches
+
+		Router.replaceRoutes(routes, buildRouteTree([{ path: '/', component: NextPage, isIndex: true }]))
+
+		expect(router.getState().matches[0]?.node.component).toBe(NextPage)
+		expect(other.getState().matches).toBe(otherMatches)
+		router.dispose()
+		other.dispose()
+	})
+
+	it('replaceRoutes leaves a disposed router alone', () => {
+		const routes = buildRouteTree([{ path: '/', component: dummyComponent, isIndex: true }])
+		const router = new Router({ routes, adapter: createMemoryNavigationAdapter({ initialURL: 'http://localhost/' }) })
+		const matches = router.getState().matches
+		router.dispose()
+
+		Router.replaceRoutes(routes, buildRouteTree([{ path: '/', component: dummyComponent, isIndex: true }]))
+
+		expect(router.getState().matches).toBe(matches)
+	})
+
 	it('initializes with the current URL state', () => {
 		const { router } = createRouter([
 			{ path: '/', component: dummyComponent, isIndex: true },

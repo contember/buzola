@@ -97,7 +97,7 @@ Key modules in `src/`:
 
 ### Vite plugin (`packages/vite-plugin`)
 
-Thin adapter (`@buzola/vite-plugin`) that exposes `buzolaPlugin()` for `vite.config.ts`. Wires `@buzola/codegen` into Vite: provides the `virtual:buzola/routes` virtual module, regenerates on `handleHotUpdate`, and uses Vite's `ssrLoadModule` as the module loader (required because Node can't `import()` `.ts`/`.tsx` directly). Supports named entrypoints for multi-SPA configs via `name` option.
+Thin adapter (`@buzola/vite-plugin`) that exposes `buzolaPlugin()` for `vite.config.ts`. Wires `@buzola/codegen` into Vite: provides the `virtual:buzola/routes` virtual module, regenerates on `handleHotUpdate`, generates the route module with `hot: 'vite'` so it accepts its own hot updates and swaps the live router's tree through `Router.replaceRoutes` (a page module is not a React Refresh boundary: it exports a page definition, not a component), and uses Vite's `ssrLoadModule` as the module loader (required because Node can't `import()` `.ts`/`.tsx` directly). Supports named entrypoints for multi-SPA configs via `name` option.
 
 ### Bun plugin (`packages/bun-plugin`)
 
