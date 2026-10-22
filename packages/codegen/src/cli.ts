@@ -10,6 +10,7 @@ const { values } = parseArgs({
 		output: { type: 'string', short: 'o' },
 		'persistent-param': { type: 'string', multiple: true },
 		root: { type: 'string' },
+		hot: { type: 'string' },
 		help: { type: 'boolean', short: 'h', default: false },
 	},
 	strict: true,
@@ -23,8 +24,15 @@ Options:
   -o, --output <path>             Output file path (default: src/buzola.gen.ts)
       --persistent-param <name>   Persistent parameter name (repeatable)
       --root <path>               Project root directory (default: cwd)
+      --hot vite                  Emit Vite hot update code, as the Vite plugin does
   -h, --help                      Show this help message`)
 	process.exit(0)
+}
+
+const hot = values.hot
+if (hot !== undefined && hot !== 'vite') {
+	console.error(`--hot accepts only "vite", got "${hot}"`)
+	process.exit(1)
 }
 
 const options = await resolveOptions({
@@ -34,7 +42,7 @@ const options = await resolveOptions({
 	persistentParams: values['persistent-param'],
 })
 
-const changed = await generate(options)
+const changed = await generate({ ...options, hot })
 
 if (changed) {
 	console.log(`Generated ${path.relative(options.root, options.outputPath)}`)
