@@ -76,7 +76,7 @@ describe('generateRouteModule', () => {
 		})
 
 		expect(output).toContain('/// <reference types="vite/client" />')
-		expect(output).toContain(`import { buildRouteTree, Router } from '@buzola/router';`)
+		expect(output).toContain(`import { buildRouteTree, lazyRoute, Router } from '@buzola/router';`)
 		expect(output).toContain('import.meta.hot.accept((next) => {')
 		expect(output).toContain('Router.replaceRoutes(routes, next.routes);')
 	})
@@ -131,6 +131,31 @@ describe('generateRouteModule', () => {
 		})
 
 		expect(output).toContain('.then(m => ({ default: m.default.component }))')
+	})
+
+	it("shares one lazyRoute load between a page's component and its preload", () => {
+		const output = generateRouteModule({
+			tree: [{
+				segment: 'users',
+				fullPath: '/users',
+				filePath: '/tmp/routes/users.tsx',
+				exportName: 'default',
+				isLayout: false,
+				isIndex: false,
+				isNotFound: false,
+				isPathlessGroup: false,
+				pageExports: [{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] }],
+				children: [],
+			}],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+		})
+
+		expect(output).toContain("import { buildRouteTree, lazyRoute } from '@buzola/router';")
+		expect(output).toContain("const Route0 = lazyRoute(() => import('./routes/users')")
+		expect(output).toContain('component: Route0.component,')
+		expect(output).toContain('preload: Route0.preload,')
+		expect(output).not.toContain('lazy(Route0)')
 	})
 
 	it('generates correct lazy import for named export', () => {

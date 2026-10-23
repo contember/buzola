@@ -42,8 +42,12 @@ export function generateRouteModule(options: CodegenOptions): string {
 	if (options.hot === 'vite') lines.push('/// <reference types="vite/client" />')
 	lines.push('')
 
-	lines.push(`import { lazy, type ComponentType } from 'react';`)
-	lines.push(options.hot === 'vite' ? `import { buildRouteTree, Router } from '@buzola/router';` : `import { buildRouteTree } from '@buzola/router';`)
+	lines.push(`import type { ComponentType } from 'react';`)
+	lines.push(
+		options.hot === 'vite'
+			? `import { buildRouteTree, lazyRoute, Router } from '@buzola/router';`
+			: `import { buildRouteTree, lazyRoute } from '@buzola/router';`,
+	)
 	lines.push(`import type { RouteConfig } from '@buzola/router';`)
 	lines.push('')
 
@@ -54,7 +58,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 	for (const imp of imports) {
 		if (imp.isLazy) {
 			lines.push(
-				`const ${imp.varName} = () => import('${imp.filePath}').then(m => ({ default: m.${imp.exportName}.component })) as Promise<{ default: ComponentType }>;`,
+				`const ${imp.varName} = lazyRoute(() => import('${imp.filePath}').then(m => ({ default: m.${imp.exportName}.component })) as Promise<{ default: ComponentType<Record<string, never>> }>);`,
 			)
 		} else {
 			if (imp.exportName !== 'default') {
@@ -208,8 +212,9 @@ function generateTreeConfig(
 
 		if (imp) {
 			if (imp.isLazy) {
-				lines.push(`${pad}  component: lazy(${imp.varName}),`)
-				lines.push(`${pad}  preload: ${imp.varName},`)
+				// One shared load, so a preloaded page renders without suspending (see `lazyRoute`).
+				lines.push(`${pad}  component: ${imp.varName}.component,`)
+				lines.push(`${pad}  preload: ${imp.varName}.preload,`)
 			} else {
 				lines.push(`${pad}  component: ${imp.varName},`)
 			}
