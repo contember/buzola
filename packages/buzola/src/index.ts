@@ -40,6 +40,8 @@ export { s } from './engine/schema.js'
 // ─── Route definition ───────────────────────────────────────────────────────
 export { BuzolaRedirect, createPage, redirect } from './define/create-page.js'
 export type { CatchContext, PageDefinition, PageProps, RedirectFn } from './define/create-page.js'
+export { lazyRoute } from './define/lazy-route.js'
+export type { LazyRoute } from './define/lazy-route.js'
 
 // ─── React (re-export from subpath) ─────────────────────────────────────────
 export {
