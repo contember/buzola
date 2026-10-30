@@ -60,6 +60,13 @@ jobs:
             }
           "
 
+      # npm only packs a LICENSE that sits in the package directory.
+      - name: Copy LICENSE into packages
+        run: |
+          for p in packages/buzola packages/codegen packages/vite-plugin packages/bun-plugin; do
+            cp LICENSE "$p/LICENSE"
+          done
+
       - name: Publish @buzola/router
         working-directory: packages/buzola
         run: npm publish --provenance --access public

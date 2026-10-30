@@ -15,6 +15,7 @@
 		"dist",
 		"src"
 	],
+	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/contember/buzola",
