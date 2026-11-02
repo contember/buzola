@@ -313,7 +313,7 @@ Files use `createPage()` to define their params, loaders, and component. The `.r
 
 ## Requirements
 
-- React 18 or 19
+- React 19 (the router provides its contexts as `<Context value>`, which React 18 does not support)
 - A browser with the [Navigation API](https://caniuse.com/mdn-api_navigation), including `NavigateEvent.intercept()`: Chrome and Edge 105, Firefox 147, Safari 26.2 (macOS and iOS), Opera 91, Samsung Internet 20 (per MDN browser-compat-data 8.1.8). Elsewhere the app shows a notice instead, see [Unsupported browsers](#unsupported-browsers)
 - Vite or Bun (for the file-based routing plugin)
 
