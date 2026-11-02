@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Buzola is a type-safe SPA router for React built on the browser's Navigation API. It uses a page-centric approach where each page declares itself via `createPage()` with typed params, loaders, and error handling. Type safety is achieved through TypeScript module augmentation of `BuzolaPageMap` and `BuzolaPersistentParams`.
 
+React 19 only: the React layer relies on `use()` (contexts, loader data) and `<Context value>`, so don't add React 18 fallbacks or widen the `react` peer range.
+
 ## Repository Structure
 
 Bun monorepo:

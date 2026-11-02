@@ -27,7 +27,7 @@
 		"directory": "packages/buzola"
 	},
 	"peerDependencies": {
-		"react": "^18.0.0 || ^19.0.0"
+		"react": "^19.0.0"
 	},
 	"devDependencies": {
 		"@testing-library/dom": "^10.4.1",
