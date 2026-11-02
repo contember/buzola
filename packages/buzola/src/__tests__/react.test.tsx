@@ -1229,6 +1229,23 @@ describe('BuzolaProvider without the Navigation API', () => {
 		expect(container.innerHTML).toBe('<h1>Update your browser</h1>')
 	})
 
+	it('renders nothing when given null', () => {
+		const { container } = render(<BuzolaProvider routes={routes} unsupportedBrowser={null} />)
+
+		expect(container.innerHTML).toBe('')
+	})
+
+	it('leaves a render outside a browser to the router, which throws there', () => {
+		const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')!
+		Reflect.deleteProperty(globalThis, 'window')
+		try {
+			const element = BuzolaProvider({ routes }) as React.ReactElement<{ routes?: unknown }>
+			expect(element.props.routes).toBe(routes)
+		} finally {
+			Object.defineProperty(globalThis, 'window', descriptor)
+		}
+	})
+
 	it('renders a router passed in, which brought its own adapter', () => {
 		const { router } = createTestRouter([{ path: '/', component: Home, isIndex: true }])
 		const { getByText } = render(<BuzolaProvider router={router} />)

@@ -258,7 +258,8 @@ at the destination while the previous page stays on screen, as with any blocked 
 
 The router cannot run without the Navigation API (see [Requirements](#requirements)). In such a browser
 `BuzolaProvider` renders a short notice in place of the app instead of failing on a blank page. Pass
-`unsupportedBrowser` to render your own:
+`unsupportedBrowser` to render your own, or `null` to render nothing. It renders on its own, without
+`middleware` or `children`, since both need the router, so give it any context it uses itself:
 
 ```tsx
 <BuzolaProvider

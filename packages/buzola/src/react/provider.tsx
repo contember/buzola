@@ -42,7 +42,8 @@ export type BuzolaProviderProps =
 			shouldIntercept?: ShouldInterceptFn
 			/**
 			 * Rendered instead of the app in a browser without the Navigation API, where the router cannot run.
-			 * Defaults to a short English notice.
+			 * It renders on its own, without `middleware` or `children`, which need the router.
+			 * Defaults to a short English notice; `null` renders nothing.
 			 */
 			unsupportedBrowser?: React.ReactNode
 		}
@@ -54,9 +55,10 @@ export type BuzolaProviderProps =
  */
 export function BuzolaProvider({ unsupportedBrowser, ...props }: BuzolaProviderProps): React.ReactElement {
 	// A router passed in already has its adapter. Without one, the browser adapter would throw on creation and
-	// leave a blank page, so say why instead. Support does not change while the page is open.
-	if (!props.router && !isNavigationApiSupported()) {
-		return <>{unsupportedBrowser ?? <UnsupportedBrowser />}</>
+	// leave a blank page, so say why instead. Outside a browser the adapter still throws: a notice about the browser
+	// would be wrong in server-rendered HTML. Support does not change while the page is open.
+	if (!props.router && typeof window !== 'undefined' && !isNavigationApiSupported()) {
+		return <>{unsupportedBrowser !== undefined ? unsupportedBrowser : <UnsupportedBrowser />}</>
 	}
 	return <RouterRoot {...props} />
 }
