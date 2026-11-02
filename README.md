@@ -21,6 +21,8 @@ Buzola uses a **page-centric approach** -- each page declares itself via `create
 
 ## Installation
 
+Buzola requires React 19 and a browser with the Navigation API (see [Requirements](#requirements)).
+
 ```bash
 # With Vite
 npm install @buzola/router @buzola/vite-plugin
@@ -313,7 +315,7 @@ Files use `createPage()` to define their params, loaders, and component. The `.r
 
 ## Requirements
 
-- React 19 (the router provides its contexts as `<Context value>`, which React 18 does not support)
+- React 19. The router reads its contexts and loader data with `use()` and provides contexts as `<Context value>`; React 18 has neither
 - A browser with the [Navigation API](https://caniuse.com/mdn-api_navigation), including `NavigateEvent.intercept()`: Chrome and Edge 105, Firefox 147, Safari 26.2 (macOS and iOS), Opera 91, Samsung Internet 20 (per MDN browser-compat-data 8.1.8). Elsewhere the app shows a notice instead, see [Unsupported browsers](#unsupported-browsers)
 - Vite or Bun (for the file-based routing plugin)
 
