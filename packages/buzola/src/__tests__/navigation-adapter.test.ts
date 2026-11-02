@@ -1,7 +1,7 @@
 import './setup-dom.js'
 
 import { afterEach, describe, expect, it, mock } from 'bun:test'
-import { createBrowserNavigationAdapter } from '../engine/navigation-adapter.js'
+import { createBrowserNavigationAdapter, isNavigationApiSupported } from '../engine/navigation-adapter.js'
 import type { BuzolaNavigateEvent } from '../engine/types.js'
 
 /* The Navigation API is not implemented by happy-dom, and the parts of it this
@@ -138,5 +138,30 @@ describe('createBrowserNavigationAdapter whenCommitted', () => {
 
 		expect(committed).not.toHaveBeenCalled()
 		expect(pendingListeners()).toBe(0)
+	})
+})
+
+describe('isNavigationApiSupported', () => {
+	it('is false in a browser without the Navigation API', () => {
+		expect(isNavigationApiSupported()).toBe(false)
+	})
+
+	it('is true once the browser has it', () => {
+		withNavigation({ url: 'https://example.test/' })
+		expect(isNavigationApiSupported()).toBe(true)
+	})
+
+	it('is false outside a browser', () => {
+		const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')!
+		Reflect.deleteProperty(globalThis, 'window')
+		try {
+			expect(isNavigationApiSupported()).toBe(false)
+		} finally {
+			Object.defineProperty(globalThis, 'window', descriptor)
+		}
+	})
+
+	it('matches the browser adapter, which throws without it', () => {
+		expect(() => createBrowserNavigationAdapter()).toThrow('Navigation API is not available')
 	})
 })

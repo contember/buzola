@@ -3,10 +3,19 @@ import type { BuzolaNavigateEvent, NavigateOptions, NavigationAdapter } from './
 // ─── Browser adapter ────────────────────────────────────────────────────────
 
 /**
+ * Whether this environment has the Navigation API the browser adapter needs. False outside a browser.
+ * `BuzolaProvider` checks it before creating its router; call it yourself to decide before mounting.
+ */
+export function isNavigationApiSupported(): boolean {
+	return typeof window !== 'undefined' && !!(window as { navigation?: Navigation }).navigation
+}
+
+/**
  * Create a NavigationAdapter that delegates to the browser's Navigation API.
+ * Throws where `isNavigationApiSupported()` is false.
  */
 export function createBrowserNavigationAdapter(): NavigationAdapter {
-	const nav = (window as { navigation?: Navigation }).navigation
+	const nav = isNavigationApiSupported() ? window.navigation : undefined
 	if (!nav) {
 		throw new Error(
 			'Navigation API is not available. Buzola requires a browser that supports the Navigation API.',

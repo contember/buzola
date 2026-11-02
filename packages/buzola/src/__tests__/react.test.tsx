@@ -1200,3 +1200,39 @@ describe('BuzolaProvider shouldIntercept', () => {
 		expect(push('http://localhost/about')).toHaveBeenCalledTimes(1)
 	})
 })
+
+// ─── BuzolaProvider without the Navigation API ───────────────────────────────
+
+describe('BuzolaProvider without the Navigation API', () => {
+	/* happy-dom has no window.navigation, so these run as an unsupported browser does. */
+	const routes = buildRouteTree([
+		{ path: '/', component: Home, isIndex: true },
+	])
+
+	it('explains instead of rendering a blank page', () => {
+		const { container, queryByText } = render(<BuzolaProvider routes={routes} />)
+
+		expect(container.textContent).toContain('This browser is not supported')
+		expect(queryByText('Home')).toBeNull()
+	})
+
+	it('renders the notice the app passes instead', () => {
+		function Middleware({ children }: { children: React.ReactNode }) {
+			return <div>Middleware {children}</div>
+		}
+		const { container } = render(
+			<BuzolaProvider routes={routes} middleware={Middleware} unsupportedBrowser={<h1>Update your browser</h1>}>
+				<div>App</div>
+			</BuzolaProvider>,
+		)
+
+		expect(container.innerHTML).toBe('<h1>Update your browser</h1>')
+	})
+
+	it('renders a router passed in, which brought its own adapter', () => {
+		const { router } = createTestRouter([{ path: '/', component: Home, isIndex: true }])
+		const { getByText } = render(<BuzolaProvider router={router} />)
+
+		expect(getByText('Home')).toBeTruthy()
+	})
+})

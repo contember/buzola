@@ -175,12 +175,12 @@ createPage()
 
 ### Components
 
-| Component          | Description                                                                                              |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `middleware`      |
-| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `asChild`, `activeExact` |
-| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                              |
-| `<ErrorBoundary>`  | Catches component errors in the route tree                                                               |
+| Component          | Description                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `middleware`, `unsupportedBrowser` |
+| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `asChild`, `activeExact`                  |
+| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                                               |
+| `<ErrorBoundary>`  | Catches component errors in the route tree                                                                                |
 
 ### Hooks
 
@@ -254,6 +254,24 @@ asks the blockers and, if they allow it, reloads the destination entry. The URL 
 document arrives, and a declined form submission is not resubmitted. If a blocker refuses, the URL stays
 at the destination while the previous page stays on screen, as with any blocked navigation.
 
+### Unsupported browsers
+
+The router cannot run without the Navigation API (see [Requirements](#requirements)). In such a browser
+`BuzolaProvider` renders a short notice in place of the app instead of failing on a blank page. Pass
+`unsupportedBrowser` to render your own:
+
+```tsx
+<BuzolaProvider
+	routes={routes}
+	pageRegistry={pageRegistry}
+	unsupportedBrowser={<OutdatedBrowser />}
+/>
+```
+
+To decide before mounting anything, call `isNavigationApiSupported()`. The provider checks only when it
+creates the router itself: `createBrowserNavigationAdapter()` throws in such a browser, so an app that
+constructs its own `Router` should check first.
+
 ### Plugin Options
 
 Both `@buzola/vite-plugin` and `@buzola/bun-plugin` accept the same options:
@@ -295,7 +313,7 @@ Files use `createPage()` to define their params, loaders, and component. The `.r
 ## Requirements
 
 - React 18 or 19
-- A browser with [Navigation API](https://caniuse.com/mdn-api_navigation) support (or a polyfill)
+- A browser with the [Navigation API](https://caniuse.com/mdn-api_navigation), including `NavigateEvent.intercept()`: Chrome and Edge 105, Firefox 147, Safari 26.2 (macOS and iOS), Opera 91, Samsung Internet 20 (per MDN browser-compat-data 8.1.8). Elsewhere the app shows a notice instead, see [Unsupported browsers](#unsupported-browsers)
 - Vite or Bun (for the file-based routing plugin)
 
 ## License

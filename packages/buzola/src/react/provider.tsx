@@ -1,5 +1,5 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
-import { createBrowserNavigationAdapter } from '../engine/navigation-adapter.js'
+import { createBrowserNavigationAdapter, isNavigationApiSupported } from '../engine/navigation-adapter.js'
 import { Router } from '../engine/router.js'
 import type { RouteMatch, RouteTree, ShouldInterceptFn } from '../engine/types.js'
 import { RouteContext, type RouteContextValue, RouterContext } from './context.js'
@@ -25,7 +25,14 @@ export type BuzolaProviderProps =
 		middleware?: MiddlewareComponent
 	}
 	& (
-		| { router: Router; routes?: never; persistentParams?: never; pageRegistry?: never; shouldIntercept?: never }
+		| {
+			router: Router
+			routes?: never
+			persistentParams?: never
+			pageRegistry?: never
+			shouldIntercept?: never
+			unsupportedBrowser?: never
+		}
 		| {
 			router?: never
 			routes: RouteTree
@@ -33,6 +40,11 @@ export type BuzolaProviderProps =
 			pageRegistry?: Record<string, string>
 			/** Decides per navigation whether the router handles it; see `RouterOptions.shouldIntercept`. */
 			shouldIntercept?: ShouldInterceptFn
+			/**
+			 * Rendered instead of the app in a browser without the Navigation API, where the router cannot run.
+			 * Defaults to a short English notice.
+			 */
+			unsupportedBrowser?: React.ReactNode
 		}
 	)
 
@@ -40,7 +52,20 @@ export type BuzolaProviderProps =
  * Root provider for Buzola router.
  * Subscribes to router state and provides context to the React tree.
  */
-export function BuzolaProvider({ routes, children, middleware: Middleware, ...props }: BuzolaProviderProps): React.ReactElement {
+export function BuzolaProvider({ unsupportedBrowser, ...props }: BuzolaProviderProps): React.ReactElement {
+	// A router passed in already has its adapter. Without one, the browser adapter would throw on creation and
+	// leave a blank page, so say why instead. Support does not change while the page is open.
+	if (!props.router && !isNavigationApiSupported()) {
+		return <>{unsupportedBrowser ?? <UnsupportedBrowser />}</>
+	}
+	return <RouterRoot {...props} />
+}
+
+function UnsupportedBrowser(): React.ReactElement {
+	return <p>This browser is not supported. Open the page in a current version of Chrome, Edge, Firefox or Safari.</p>
+}
+
+function RouterRoot({ routes, children, middleware: Middleware, ...props }: BuzolaProviderProps): React.ReactElement {
 	// The router is created once, so it reads the latest prop through a ref rather than the first render's closure.
 	const shouldInterceptRef = useRef(props.shouldIntercept)
 	useLayoutEffect(() => {
