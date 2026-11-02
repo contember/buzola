@@ -56,7 +56,7 @@ Two export paths (conditional: Bun uses source `.ts` directly, Node/browsers use
 Key engine modules in `src/engine/`:
 
 - `router.ts`: Central `Router` class managing state, navigation, subscriptions
-- `matcher.ts`: URL matching via `URLPattern` API
+- `matcher.ts`: URL matching on a segment trie (static before dynamic before catch-all segments; no `URLPattern`)
 - `route-tree.ts`: Builds `RouteNode` tree from flat route configs
 - `navigation-adapter.ts`: Browser Navigation API abstraction (browser + memory adapter for tests)
 - `loader-cache.ts`: Configurable LRU cache for loader data (stale-while-revalidate)

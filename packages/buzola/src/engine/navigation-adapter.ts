@@ -3,15 +3,28 @@ import type { BuzolaNavigateEvent, NavigateOptions, NavigationAdapter } from './
 // ─── Browser adapter ────────────────────────────────────────────────────────
 
 /**
+ * Whether this environment has the Navigation API the browser adapter needs. False outside a browser.
+ * `BuzolaProvider` checks it before creating its router; call it yourself to decide before mounting.
+ */
+export function isNavigationApiSupported(): boolean {
+	if (typeof window === 'undefined' || !(window as { navigation?: Navigation }).navigation) return false
+	// Chromium 102–104 shipped the API with transitionWhile() in place of the intercept() the router calls. Only an
+	// event class without it rules the browser out: a polyfill or a test stub may provide window.navigation alone.
+	const navigateEvent = (globalThis as { NavigateEvent?: { prototype: object } }).NavigateEvent
+	return !navigateEvent || 'intercept' in navigateEvent.prototype
+}
+
+/**
  * Create a NavigationAdapter that delegates to the browser's Navigation API.
+ * Throws where `isNavigationApiSupported()` is false.
  */
 export function createBrowserNavigationAdapter(): NavigationAdapter {
-	const nav = (window as { navigation?: Navigation }).navigation
-	if (!nav) {
+	if (!isNavigationApiSupported()) {
 		throw new Error(
 			'Navigation API is not available. Buzola requires a browser that supports the Navigation API.',
 		)
 	}
+	const nav = window.navigation
 
 	const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
 	let pendingViewTransition = false
