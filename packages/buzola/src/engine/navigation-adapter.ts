@@ -8,9 +8,10 @@ import type { BuzolaNavigateEvent, NavigateOptions, NavigationAdapter } from './
  */
 export function isNavigationApiSupported(): boolean {
 	if (typeof window === 'undefined' || !(window as { navigation?: Navigation }).navigation) return false
-	// Chromium 102–104 shipped the API with transitionWhile() in place of the intercept() the router calls.
+	// Chromium 102–104 shipped the API with transitionWhile() in place of the intercept() the router calls. Only an
+	// event class without it rules the browser out: a polyfill or a test stub may provide window.navigation alone.
 	const navigateEvent = (globalThis as { NavigateEvent?: { prototype: object } }).NavigateEvent
-	return !!navigateEvent && 'intercept' in navigateEvent.prototype
+	return !navigateEvent || 'intercept' in navigateEvent.prototype
 }
 
 /**

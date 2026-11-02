@@ -2,6 +2,7 @@ import './setup-dom.js'
 import { act, cleanup, fireEvent, render, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import React from 'react'
+import { renderToString } from 'react-dom/server'
 import { BuzolaRedirect, createPage } from '../define/create-page.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
@@ -1239,8 +1240,7 @@ describe('BuzolaProvider without the Navigation API', () => {
 		const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')!
 		Reflect.deleteProperty(globalThis, 'window')
 		try {
-			const element = BuzolaProvider({ routes }) as React.ReactElement<{ routes?: unknown }>
-			expect(element.props.routes).toBe(routes)
+			expect(() => renderToString(<BuzolaProvider routes={routes} />)).toThrow('Navigation API is not available')
 		} finally {
 			Object.defineProperty(globalThis, 'window', descriptor)
 		}

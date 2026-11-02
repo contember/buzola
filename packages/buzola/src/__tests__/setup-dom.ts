@@ -19,10 +19,3 @@ Object.defineProperty(globalThis, 'window', { value: window, writable: true, con
 Object.defineProperty(globalThis, 'document', { value: window.document, writable: true, configurable: true })
 Object.defineProperty(globalThis, 'navigator', { value: window.navigator, writable: true, configurable: true })
 Object.defineProperty(globalThis, 'HTMLElement', { value: window.HTMLElement, writable: true, configurable: true })
-
-// happy-dom has no Navigation API. Its event class alone does not make the browser supported: tests that need the
-// API stand in for window.navigation.
-class NavigateEvent extends window.Event {
-	intercept(): void {}
-}
-Object.defineProperty(globalThis, 'NavigateEvent', { value: NavigateEvent, writable: true, configurable: true })

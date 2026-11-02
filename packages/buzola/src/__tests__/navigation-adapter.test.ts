@@ -153,12 +153,26 @@ describe('isNavigationApiSupported', () => {
 
 	it('is false where navigate events cannot be intercepted', () => {
 		withNavigation({ url: 'https://example.test/' })
-		const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'NavigateEvent')!
 		Object.defineProperty(globalThis, 'NavigateEvent', { value: class extends Event {}, configurable: true })
 		try {
 			expect(isNavigationApiSupported()).toBe(false)
 		} finally {
-			Object.defineProperty(globalThis, 'NavigateEvent', descriptor)
+			Reflect.deleteProperty(globalThis, 'NavigateEvent')
+		}
+	})
+
+	it('is true where navigate events can be intercepted', () => {
+		withNavigation({ url: 'https://example.test/' })
+		Object.defineProperty(globalThis, 'NavigateEvent', {
+			value: class extends Event {
+				intercept() {}
+			},
+			configurable: true,
+		})
+		try {
+			expect(isNavigationApiSupported()).toBe(true)
+		} finally {
+			Reflect.deleteProperty(globalThis, 'NavigateEvent')
 		}
 	})
 
