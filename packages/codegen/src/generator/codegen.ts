@@ -42,7 +42,6 @@ export function generateRouteModule(options: CodegenOptions): string {
 	if (options.hot === 'vite') lines.push('/// <reference types="vite/client" />')
 	lines.push('')
 
-	lines.push(`import type { ComponentType } from 'react';`)
 	lines.push(
 		options.hot === 'vite'
 			? `import { buildRouteTree, lazyRoute, Router } from '@buzola/router';`
@@ -58,7 +57,7 @@ export function generateRouteModule(options: CodegenOptions): string {
 	for (const imp of imports) {
 		if (imp.isLazy) {
 			lines.push(
-				`const ${imp.varName} = lazyRoute(() => import('${imp.filePath}').then(m => ({ default: m.${imp.exportName}.component })) as Promise<{ default: ComponentType<Record<string, never>> }>);`,
+				`const ${imp.varName} = lazyRoute(() => import('${imp.filePath}').then(m => ({ default: m.${imp.exportName}.component })));`,
 			)
 		} else {
 			if (imp.exportName !== 'default') {

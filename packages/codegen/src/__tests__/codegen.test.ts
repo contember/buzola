@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'bun:test'
+import ts from 'typescript'
 import { generateRouteModule } from '../generator/codegen.js'
+
+function findTypeAssertions(source: string): string[] {
+	const file = ts.createSourceFile('buzola.gen.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+	const found: string[] = []
+	const visit = (node: ts.Node): void => {
+		if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) found.push(node.getText(file))
+		ts.forEachChild(node, visit)
+	}
+	visit(file)
+	return found
+}
 
 describe('generateRouteModule', () => {
 	it('emits BuzolaPersistentParams when persistentParams is provided', () => {
@@ -275,5 +287,69 @@ describe('generateRouteModule', () => {
 		// Both in page registry
 		expect(output).toContain("'users': '/users'")
 		expect(output).toContain("'users/detail': '/users/detail'")
+	})
+
+	it('emits no type assertion, so consumers that forbid them can use the file as is', () => {
+		const output = generateRouteModule({
+			tree: [{
+				segment: '',
+				fullPath: '/',
+				filePath: '/tmp/routes/_layout.tsx',
+				isLayout: true,
+				isIndex: false,
+				isNotFound: false,
+				isPathlessGroup: false,
+				children: [
+					{
+						segment: 'users',
+						fullPath: '/users',
+						filePath: '/tmp/routes/users.tsx',
+						exportName: 'default',
+						isLayout: false,
+						isIndex: false,
+						isNotFound: false,
+						isPathlessGroup: false,
+						pageExports: [{ pageId: 'users', exportName: 'default', routePattern: '/users', params: [] }],
+						children: [],
+					},
+					{
+						segment: 'detail',
+						fullPath: '/detail',
+						filePath: '/tmp/routes/users.tsx',
+						exportName: 'detail',
+						isLayout: false,
+						isIndex: false,
+						isNotFound: false,
+						isPathlessGroup: false,
+						pageExports: [{
+							pageId: 'users/detail',
+							exportName: 'detail',
+							routePattern: '/users/:id',
+							params: [{ name: 'id', optional: false, array: false }],
+						}],
+						children: [],
+					},
+					{
+						segment: '',
+						fullPath: '/',
+						filePath: '/tmp/routes/_404.tsx',
+						exportName: 'default',
+						isLayout: false,
+						isIndex: false,
+						isNotFound: true,
+						isPathlessGroup: false,
+						children: [],
+					},
+				],
+			}],
+			routesDir: '/tmp/routes',
+			outputPath: '/tmp/buzola.gen.ts',
+			persistentParams: ['lang'],
+			hot: 'vite',
+		})
+
+		expect(output).toContain('lazyRoute(() => import(')
+		expect(findTypeAssertions(output)).toEqual([])
+		expect(output).not.toContain("from 'react'")
 	})
 })
