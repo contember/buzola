@@ -282,18 +282,22 @@ With a container configured:
   which scrolls the target into view inside the container.
 - **Back and forward** restore the container to where it was when the user left that history entry. The
   router saves the position, keyed by the entry, as each navigation starts. After the destination renders,
-  it retries the restore every frame for up to a second, until the page is tall enough. It stops early if
-  something else moves the container, e.g. the user scrolls. An entry with no saved position (one visited
-  before a reload) comes back at the top.
+  it retries the restore every frame for up to two seconds, until the page is tall enough. It stops early
+  when the container moves on its own between two attempts: the user scrolls, or CSS scroll anchoring or
+  shrinking content shifts it. A page whose loader fetches again on Back can take longer than that; create
+  the router with `loaderCacheSize` so it renders its cached data first. An entry with no saved position
+  (the container was not mounted when the user left it) comes back at the top.
 - The router sets `history.scrollRestoration` to `'manual'` while it runs and puts the previous value back
-  when it stops.
+  when it stops. This applies to the whole document: on a page where the getter returns no element and the
+  document scrolls instead, Back and forward no longer restore the document.
 
 Without the option, nothing changes: the document is scrolled as described above.
 
 The option takes a single container. An app with more than one scroller (a main pane plus a drawer, say)
-gets the main pane restored; any other scroller keeps its own position. Positions live in memory, so a
-reload starts over. The `BuzolaProvider` prop is read once, when the router is created: pass a ref or a
-getter rather than switching it on later.
+gets the main pane restored; any other scroller keeps its own position. Positions live in memory for the
+current document; Back to an entry from before a reload loads a new document, which starts at the top.
+The `BuzolaProvider` prop is read once, when the router is created: pass a ref or a getter rather than
+switching it on later.
 
 ### Unsupported browsers
 

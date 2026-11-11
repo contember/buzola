@@ -495,7 +495,7 @@ describe('Router scroll container', () => {
 		if (original) {
 			Object.defineProperty(globalThis, 'window', original)
 		} else {
-			delete (globalThis as { window?: unknown }).window
+			Reflect.deleteProperty(globalThis, 'window')
 		}
 	})
 
@@ -517,6 +517,7 @@ describe('Router scroll container', () => {
 			[
 				{ path: '/list', component: dummyComponent },
 				{ path: '/about', component: dummyComponent },
+				{ path: '/contact', component: dummyComponent },
 			],
 			'http://localhost/list',
 			{ scrollContainer },
@@ -620,6 +621,79 @@ describe('Router scroll container', () => {
 		await frames()
 
 		expect(container.scrollTop).toBe(20)
+	})
+
+	it('keeps the saved position of an entry whose restore is still running', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		router.navigate('/about')
+		container.scrollTop = 50
+		router.navigate('/contact')
+		container.scrollTop = 999
+
+		// The second back leaves /about before its restore ran, while the container still shows /contact.
+		router.back()
+		router.back()
+		router.forward()
+		await frames()
+
+		expect(container.scrollTop).toBe(50)
+	})
+
+	it('saves the position under the page on screen while a blocked push has moved the URL', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		let allow = false
+		router.addBlocker(async () => allow)
+
+		router.navigate('/about')
+		await frames()
+		// Refused: the URL is at /about, the list is still on screen and the user scrolls it.
+		container.scrollTop = 120
+		allow = true
+		router.back()
+		await frames()
+
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(container.scrollTop).toBe(120)
+	})
+
+	it('stops restoring when another entry is shown', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.maxTop = 100
+
+		router.back()
+		router.navigate('/contact', { resetScroll: false })
+		container.maxTop = 10_000
+		await frames()
+
+		expect(container.scrollTop).toBe(0)
+	})
+
+	it('goes on restoring through a replace that keeps the scroll, and stops at one that resets it', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.maxTop = 100
+
+		router.back()
+		router.navigate('/list?sort=name', { replace: true, resetScroll: false })
+		container.maxTop = 10_000
+		await frames()
+		expect(container.scrollTop).toBe(300)
+
+		router.navigate('/about')
+		container.maxTop = 100
+		router.back()
+		router.navigate('/list?sort=date', { replace: true })
+		container.maxTop = 10_000
+		await frames()
+		expect(container.scrollTop).toBe(0)
 	})
 
 	it('scrolls an entry it has no position for to the top', async () => {
