@@ -1,7 +1,7 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { createBrowserNavigationAdapter, isNavigationApiSupported } from '../engine/navigation-adapter.js'
-import { Router } from '../engine/router.js'
-import type { RouteMatch, RouteTree, ShouldInterceptFn } from '../engine/types.js'
+import { resolveScrollContainer, Router } from '../engine/router.js'
+import type { RouteMatch, RouteTree, ScrollContainer, ShouldInterceptFn } from '../engine/types.js'
 import { RouteContext, type RouteContextValue, RouterContext } from './context.js'
 import { Outlet } from './outlet.js'
 
@@ -31,6 +31,7 @@ export type BuzolaProviderProps =
 			persistentParams?: never
 			pageRegistry?: never
 			shouldIntercept?: never
+			scrollContainer?: never
 			unsupportedBrowser?: never
 		}
 		| {
@@ -40,6 +41,11 @@ export type BuzolaProviderProps =
 			pageRegistry?: Record<string, string>
 			/** Decides per navigation whether the router handles it; see `RouterOptions.shouldIntercept`. */
 			shouldIntercept?: ShouldInterceptFn
+			/**
+			 * The element the app scrolls its pages in, when that is not the document; see `RouterOptions.scrollContainer`.
+			 * Usually a ref to an element a layout renders. Whether it is set is read once, when the router is created.
+			 */
+			scrollContainer?: ScrollContainer
 			/**
 			 * Rendered instead of the app in a browser without the Navigation API, where the router cannot run.
 			 * It renders on its own, without `middleware` or `children`, which need the router.
@@ -70,8 +76,10 @@ function UnsupportedBrowser(): React.ReactElement {
 function RouterRoot({ routes, children, middleware: Middleware, ...props }: BuzolaProviderProps): React.ReactElement {
 	// The router is created once, so it reads the latest prop through a ref rather than the first render's closure.
 	const shouldInterceptRef = useRef(props.shouldIntercept)
+	const scrollContainerRef = useRef(props.scrollContainer)
 	useLayoutEffect(() => {
 		shouldInterceptRef.current = props.shouldIntercept
+		scrollContainerRef.current = props.scrollContainer
 	})
 	const routerRef = useRef<Router | undefined>(props.router)
 	if (!routerRef.current) {
@@ -81,6 +89,11 @@ function RouterRoot({ routes, children, middleware: Middleware, ...props }: Buzo
 			persistentParams: props.persistentParams,
 			pageRegistry: props.pageRegistry,
 			shouldIntercept: info => shouldInterceptRef.current?.(info) ?? true,
+			// Without the prop the router must not get a container at all: it would take over scroll restoration.
+			scrollContainer: props.scrollContainer === undefined ? undefined : () => {
+				const container = scrollContainerRef.current
+				return container === undefined ? null : resolveScrollContainer(container)
+			},
 		})
 	}
 	const router = routerRef.current

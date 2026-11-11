@@ -3,7 +3,7 @@ import { matchRoutes } from '../engine/matcher.js'
 import { createMemoryNavigationAdapter } from '../engine/navigation-adapter.js'
 import { buildRouteTree } from '../engine/route-tree.js'
 import { Router } from '../engine/router.js'
-import type { BuzolaNavigateEvent, InterceptInfo, NavigationAdapter, RouteConfig, ShouldInterceptFn } from '../engine/types.js'
+import type { BuzolaNavigateEvent, InterceptInfo, NavigationAdapter, RouteConfig, ScrollContainer, ShouldInterceptFn } from '../engine/types.js'
 
 function dummyComponent() {
 	return null
@@ -12,7 +12,12 @@ function dummyComponent() {
 function createRouter(
 	configs: RouteConfig[],
 	initialURL = 'http://localhost/',
-	options?: { persistentParams?: () => Record<string, string>; shouldIntercept?: ShouldInterceptFn; viewTransitions?: boolean },
+	options?: {
+		persistentParams?: () => Record<string, string>
+		shouldIntercept?: ShouldInterceptFn
+		viewTransitions?: boolean
+		scrollContainer?: ScrollContainer
+	},
 ) {
 	const routes = buildRouteTree(configs)
 	const adapter = createMemoryNavigationAdapter({ initialURL })
@@ -473,6 +478,275 @@ describe('Router scroll to top', () => {
 
 		expect(scroll).toEqual(['manual'])
 		expect(scrollTo).not.toHaveBeenCalled()
+	})
+})
+
+describe('Router scroll container', () => {
+	// Stands in for the window and its history. Other test files install a DOM, so the real global is put back.
+	const original = Object.getOwnPropertyDescriptor(globalThis, 'window')
+	const windowScrollTo = mock((_options: ScrollToOptions) => {})
+	const history = { scrollRestoration: 'auto' }
+	beforeEach(() => {
+		windowScrollTo.mockClear()
+		history.scrollRestoration = 'auto'
+		Object.defineProperty(globalThis, 'window', { value: { scrollTo: windowScrollTo, history }, writable: true, configurable: true })
+	})
+	afterEach(() => {
+		if (original) {
+			Object.defineProperty(globalThis, 'window', original)
+		} else {
+			Reflect.deleteProperty(globalThis, 'window')
+		}
+	})
+
+	// An element whose scroll position is clamped to its content, like a real one: `maxTop` is how far it can scroll.
+	function createContainer() {
+		return {
+			scrollTop: 0,
+			scrollLeft: 0,
+			maxTop: 10_000,
+			scrollTo(options: ScrollToOptions) {
+				this.scrollTop = Math.min(options.top ?? this.scrollTop, this.maxTop)
+				this.scrollLeft = options.left ?? this.scrollLeft
+			},
+		}
+	}
+
+	function createContainerRouter(scrollContainer?: ScrollContainer) {
+		return createRouter(
+			[
+				{ path: '/list', component: dummyComponent },
+				{ path: '/about', component: dummyComponent },
+				{ path: '/contact', component: dummyComponent },
+			],
+			'http://localhost/list',
+			{ scrollContainer },
+		)
+	}
+
+	const frames = () => new Promise(resolve => setTimeout(resolve, 50))
+
+	it('resets the container on a push and a replace', () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+
+		container.scrollTop = 300
+		router.navigate('/about')
+		expect(container.scrollTop).toBe(0)
+
+		container.scrollTop = 300
+		router.navigate('/list', { replace: true })
+		expect(container.scrollTop).toBe(0)
+		// The document is still reset as before.
+		expect(windowScrollTo).toHaveBeenCalledTimes(2)
+	})
+
+	it('keeps the container where it is when resetScroll is false', () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+
+		container.scrollTop = 300
+		router.navigate('/about', { resetScroll: false })
+
+		expect(container.scrollTop).toBe(300)
+	})
+
+	it('leaves a fragment navigation to the browser', () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+
+		container.scrollTop = 300
+		router.navigate('/about#team')
+
+		expect(container.scrollTop).toBe(300)
+	})
+
+	it('restores the position of each entry on back and forward', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.scrollTop = 50
+
+		router.back()
+		await frames()
+		expect(container.scrollTop).toBe(300)
+
+		router.forward()
+		await frames()
+		expect(container.scrollTop).toBe(50)
+	})
+
+	it('restores on a traversal it intercepts', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.scrollTop = 50
+		router.addBlocker(async () => true)
+
+		router.back()
+		await frames()
+
+		expect(container.scrollTop).toBe(300)
+	})
+
+	it('keeps retrying until the destination is tall enough', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.maxTop = 100
+
+		router.back()
+		await frames()
+		expect(container.scrollTop).toBe(100)
+
+		container.maxTop = 10_000
+		await frames()
+		expect(container.scrollTop).toBe(300)
+	})
+
+	it('stops restoring once something else moved the container', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.maxTop = 100
+
+		router.back()
+		await frames()
+		container.scrollTop = 20
+		container.maxTop = 10_000
+		await frames()
+
+		expect(container.scrollTop).toBe(20)
+	})
+
+	it('keeps the saved position of an entry whose restore is still running', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		router.navigate('/about')
+		container.scrollTop = 50
+		router.navigate('/contact')
+		container.scrollTop = 999
+
+		// The second back leaves /about before its restore ran, while the container still shows /contact.
+		router.back()
+		router.back()
+		router.forward()
+		await frames()
+
+		expect(container.scrollTop).toBe(50)
+	})
+
+	it('saves the position under the page on screen while a blocked push has moved the URL', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		let allow = false
+		router.addBlocker(async () => allow)
+
+		router.navigate('/about')
+		await frames()
+		// Refused: the URL is at /about, the list is still on screen and the user scrolls it.
+		container.scrollTop = 120
+		allow = true
+		router.back()
+		await frames()
+
+		expect(router.getState().location.pathname).toBe('/list')
+		expect(container.scrollTop).toBe(120)
+	})
+
+	it('stops restoring when another entry is shown', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.maxTop = 100
+
+		router.back()
+		router.navigate('/contact', { resetScroll: false })
+		container.maxTop = 10_000
+		await frames()
+
+		expect(container.scrollTop).toBe(0)
+	})
+
+	it('goes on restoring through a replace that keeps the scroll, and stops at one that resets it', async () => {
+		const container = createContainer()
+		const { router } = createContainerRouter(container)
+		container.scrollTop = 300
+		router.navigate('/about')
+		container.maxTop = 100
+
+		router.back()
+		router.navigate('/list?sort=name', { replace: true, resetScroll: false })
+		container.maxTop = 10_000
+		await frames()
+		expect(container.scrollTop).toBe(300)
+
+		router.navigate('/about')
+		container.maxTop = 100
+		router.back()
+		router.navigate('/list?sort=date', { replace: true })
+		container.maxTop = 10_000
+		await frames()
+		expect(container.scrollTop).toBe(0)
+	})
+
+	it('scrolls an entry it has no position for to the top', async () => {
+		const container = createContainer()
+		const { router, adapter } = createContainerRouter(container)
+		router.navigate('/about')
+		router.dispose()
+		// A new router, e.g. after a reload, has no saved positions.
+		const next = new Router({
+			routes: buildRouteTree([{ path: '/list', component: dummyComponent }, { path: '/about', component: dummyComponent }]),
+			adapter,
+			scrollContainer: container,
+		})
+		next.start()
+		container.scrollTop = 300
+
+		next.back()
+		await frames()
+
+		expect(container.scrollTop).toBe(0)
+		next.dispose()
+	})
+
+	it('resolves a ref when the navigation happens', async () => {
+		const ref: { current: ReturnType<typeof createContainer> | null } = { current: null }
+		const { router } = createContainerRouter(ref)
+		const container = createContainer()
+		ref.current = container
+
+		container.scrollTop = 300
+		router.navigate('/about')
+		expect(container.scrollTop).toBe(0)
+
+		router.back()
+		await frames()
+		expect(container.scrollTop).toBe(300)
+	})
+
+	it('takes over scroll restoration while it runs', () => {
+		const { router } = createContainerRouter(createContainer())
+		expect(history.scrollRestoration).toBe('manual')
+
+		router.dispose()
+		expect(history.scrollRestoration).toBe('auto')
+	})
+
+	it('leaves scroll restoration to the browser without a container', () => {
+		const { router } = createContainerRouter()
+		router.navigate('/about')
+		router.back()
+
+		expect(history.scrollRestoration).toBe('auto')
+		router.dispose()
 	})
 })
 

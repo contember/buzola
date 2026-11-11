@@ -1,6 +1,16 @@
 import { LoaderCache } from './loader-cache.js'
 import { matchRoutes } from './matcher.js'
-import type { BlockerFn, BuzolaNavigateEvent, NavigateOptions, NavigationAdapter, RouterState, RouteTree, ShouldInterceptFn } from './types.js'
+import type {
+	BlockerFn,
+	BuzolaNavigateEvent,
+	NavigateOptions,
+	NavigationAdapter,
+	RouterState,
+	RouteTree,
+	ScrollableElement,
+	ScrollContainer,
+	ShouldInterceptFn,
+} from './types.js'
 import { extractParamNames, isFragmentNavigation, isSamePath, parseParamSegment } from './utils.js'
 
 /**
@@ -17,6 +27,35 @@ export type RouterSubscriber = (state: RouterState) => void
 
 /** Routers not yet disposed, so a hot update can find the ones that render a replaced route tree. */
 const liveRouters = new Set<Router>()
+
+/** How long a restore keeps retrying while the destination is still too short for the saved position. */
+const SCROLL_RESTORE_TIMEOUT_MS = 2000
+
+interface ScrollPosition {
+	top: number
+	left: number
+}
+
+/** A restore in progress for the entry `key`. Replaced or cleared to cancel it. */
+interface PendingRestore {
+	key: string
+	target: ScrollPosition
+}
+
+/** The element a scroll container option points at right now, or null when it is not mounted. */
+export function resolveScrollContainer(container: ScrollContainer): ScrollableElement | null {
+	if (typeof container === 'function') return container() ?? null
+	if ('current' in container) return container.current
+	return container
+}
+
+function nextFrame(callback: () => void): void {
+	if (typeof requestAnimationFrame === 'function') {
+		requestAnimationFrame(callback)
+	} else {
+		setTimeout(callback, 16)
+	}
+}
 
 export interface RouterOptions {
 	/** Route tree (segment trie). */
@@ -58,6 +97,13 @@ export interface RouterOptions {
 	 * traversals and blockers are handled.
 	 */
 	shouldIntercept?: ShouldInterceptFn
+	/**
+	 * The element the app scrolls its pages in, for a layout that fills the viewport and scrolls inside an
+	 * element rather than the document. The router resets it on push and replace (unless `resetScroll` is
+	 * false or the URL has a fragment) and restores its position on back and forward. While it is set, the
+	 * router owns traversal scroll restoration: `history.scrollRestoration` is `'manual'`. One container only.
+	 */
+	scrollContainer?: ScrollContainer
 }
 
 /**
@@ -83,6 +129,12 @@ export class Router {
 	private pendingScrollBehavior: 'after-transition' | 'manual' = 'after-transition'
 	private pendingFocusReset: 'after-transition' | 'manual' | undefined
 	private readonly _loaderCache: LoaderCache | undefined
+	private readonly scrollContainer: ScrollContainer | undefined
+	/** Scroll container positions by history entry key, saved as a navigation leaves the entry. */
+	private readonly scrollPositions = new Map<string, ScrollPosition>()
+	/** The entry whose page is on screen. The committed entry runs ahead of it while a navigation is pending. */
+	private shownEntryKey: string | undefined
+	private pendingRestore: PendingRestore | undefined
 
 	/**
 	 * Hot module replacement: every live router that renders `previous` switches to `next`. Generated route modules
@@ -104,6 +156,8 @@ export class Router {
 		this.pageRegistry = options.pageRegistry ?? {}
 		this.shouldIntercept = options.shouldIntercept
 		this._loaderCache = options.loaderCacheSize ? new LoaderCache(options.loaderCacheSize) : undefined
+		this.scrollContainer = options.scrollContainer
+		this.shownEntryKey = this.adapter.getCurrentEntryKey?.()
 
 		// Initialize state from current URL
 		const url = this.adapter.getCurrentURL()
@@ -180,6 +234,8 @@ export class Router {
 				this.handleReload(event)
 				return
 			}
+			// The navigate event fires while the current entry is still the one being left.
+			this.saveContainerScroll()
 
 			const url = new URL(event.destination.url)
 			const matchUrl = this.createMatchUrl(url)
@@ -219,6 +275,7 @@ export class Router {
 				event.whenCommitted(() => {
 					if (this.navigationId !== currentNavId) return
 					this.commitLocation(url, matches, this.adapter.getState(), event.navigationType)
+					this.restoreContainerScroll()
 				})
 				return
 			}
@@ -268,6 +325,11 @@ export class Router {
 						if (scrollToTop && typeof window !== 'undefined') {
 							window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
 						}
+						if (scrollToTop) {
+							this.resetContainerScroll()
+						} else if (event.navigationType === 'traverse') {
+							this.restoreContainerScroll()
+						}
 					}
 
 					if (useViewTransition) {
@@ -281,8 +343,15 @@ export class Router {
 
 		this.adapter.addEventListener('navigate', handler)
 
+		// The browser would restore the document, which does not scroll, and leave the container where it was.
+		const history = this.scrollContainer && typeof window !== 'undefined' ? window.history : undefined
+		const previousScrollRestoration = history?.scrollRestoration
+		if (history) history.scrollRestoration = 'manual'
+
 		const stop = () => {
 			this.adapter.removeEventListener('navigate', handler)
+			this.pendingRestore = undefined
+			if (history && previousScrollRestoration) history.scrollRestoration = previousScrollRestoration
 		}
 		this.stopFn = stop
 
@@ -296,6 +365,7 @@ export class Router {
 		navigationType: BuzolaNavigateEvent['navigationType'],
 	): void {
 		const previousHref = this.state.location.href
+		this.shownEntryKey = this.adapter.getCurrentEntryKey?.()
 		this.setState({
 			location: url,
 			matches,
@@ -311,6 +381,61 @@ export class Router {
 		if (previousHref === url.href && navigationType !== 'traverse') {
 			this.invalidateAll()
 		}
+	}
+
+	private saveContainerScroll(): void {
+		if (!this.scrollContainer) return
+		const key = this.shownEntryKey
+		// Until its restore finishes, the container does not show this entry's position yet: keep the saved one.
+		if (key === undefined || this.pendingRestore?.key === key) return
+		const element = resolveScrollContainer(this.scrollContainer)
+		if (!element) return
+		this.scrollPositions.set(key, { top: element.scrollTop, left: element.scrollLeft })
+	}
+
+	private resetContainerScroll(): void {
+		if (!this.scrollContainer) return
+		this.pendingRestore = undefined
+		resolveScrollContainer(this.scrollContainer)?.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+	}
+
+	/**
+	 * Scroll the container to the position saved for the entry just committed, or to the top if none was saved.
+	 * The destination may render later (a lazy route, a suspended loader) and be too short until then, so the
+	 * restore retries every frame until the position is reached, the time runs out, another entry is shown, the
+	 * container is reset, or something else moved the container (the user scrolled).
+	 */
+	private restoreContainerScroll(): void {
+		const container = this.scrollContainer
+		const key = this.shownEntryKey
+		if (!container || key === undefined) return
+		const restore: PendingRestore = { key, target: this.scrollPositions.get(key) ?? { top: 0, left: 0 } }
+		this.pendingRestore = restore
+		const { target } = restore
+		const deadline = Date.now() + SCROLL_RESTORE_TIMEOUT_MS
+		let last: { element: ScrollableElement; top: number; left: number } | undefined
+		const finish = () => {
+			if (this.pendingRestore === restore) this.pendingRestore = undefined
+		}
+
+		const attempt = () => {
+			// A replace keeps the entry, so a replace that does not reset the scroll leaves the restore running.
+			if (this.pendingRestore !== restore || this.shownEntryKey !== key) return finish()
+			const element = resolveScrollContainer(container)
+			if (element) {
+				if (last?.element === element && (element.scrollTop !== last.top || element.scrollLeft !== last.left)) return finish()
+				element.scrollTo({ top: target.top, left: target.left, behavior: 'instant' })
+				if (Math.abs(element.scrollTop - target.top) < 1 && Math.abs(element.scrollLeft - target.left) < 1) return finish()
+				last = { element, top: element.scrollTop, left: element.scrollLeft }
+			}
+			if (Date.now() < deadline) {
+				nextFrame(attempt)
+			} else {
+				finish()
+			}
+		}
+		// The first attempt waits a frame, so the destination has rendered.
+		nextFrame(attempt)
 	}
 
 	/**

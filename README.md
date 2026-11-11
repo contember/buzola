@@ -177,12 +177,12 @@ createPage()
 
 ### Components
 
-| Component          | Description                                                                                                               |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `middleware`, `unsupportedBrowser` |
-| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `asChild`, `activeExact`                  |
-| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                                               |
-| `<ErrorBoundary>`  | Catches component errors in the route tree                                                                                |
+| Component          | Description                                                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `scrollContainer`, `middleware`, `unsupportedBrowser` |
+| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `resetScroll`, `asChild`, `activeExact`                      |
+| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                                                                  |
+| `<ErrorBoundary>`  | Catches component errors in the route tree                                                                                                   |
 
 ### Hooks
 
@@ -255,6 +255,49 @@ blocker is registered, a declined push or replace is handled like a traversal: t
 asks the blockers and, if they allow it, reloads the destination entry. The URL changes before the new
 document arrives, and a declined form submission is not resubmitted. If a blocker refuses, the URL stays
 at the destination while the previous page stays on screen, as with any blocked navigation.
+
+### Scrolling inside an element
+
+By default the router scrolls the document: it resets it to the top on a push or replace and lets the
+browser restore it on Back and Forward. A layout that fills the viewport and scrolls inside an element
+(say a `<main>` with `overflow: auto`) needs the router to scroll that element instead. Name it with
+`scrollContainer`: the element, a ref to it, or a getter. A ref or a getter is resolved at every
+navigation, so the element can be rendered by a layout that mounts after the router.
+
+```tsx
+// src/scroll-container.ts; the root layout renders <main ref={mainRef}> around its <Outlet />
+export const mainRef = createRef<HTMLElement>()
+
+// src/app.tsx
+<BuzolaProvider routes={routes} pageRegistry={pageRegistry} scrollContainer={mainRef} />
+
+// or, with a getter, or when you construct the router yourself:
+new Router({ routes, adapter, scrollContainer: () => document.querySelector('main') })
+```
+
+With a container configured:
+
+- **Push and replace** reset the container to the top, as the document is reset. A `<Link resetScroll={false}>`
+  (or `navigate(to, { resetScroll: false })`) keeps it where it is, and a `#fragment` is left to the browser,
+  which scrolls the target into view inside the container.
+- **Back and forward** restore the container to where it was when the user left that history entry. The
+  router saves the position, keyed by the entry, as each navigation starts. After the destination renders,
+  it retries the restore every frame for up to two seconds, until the page is tall enough. It stops early
+  when the container moves on its own between two attempts: the user scrolls, or CSS scroll anchoring or
+  shrinking content shifts it. A page whose loader fetches again on Back can take longer than that; create
+  the router with `loaderCacheSize` so it renders its cached data first. An entry with no saved position
+  (the container was not mounted when the user left it) comes back at the top.
+- The router sets `history.scrollRestoration` to `'manual'` while it runs and puts the previous value back
+  when it stops. This applies to the whole document: on a page where the getter returns no element and the
+  document scrolls instead, Back and forward no longer restore the document.
+
+Without the option, nothing changes: the document is scrolled as described above.
+
+The option takes a single container. An app with more than one scroller (a main pane plus a drawer, say)
+gets the main pane restored; any other scroller keeps its own position. Positions live in memory for the
+current document; Back to an entry from before a reload loads a new document, which starts at the top.
+The `BuzolaProvider` prop is read once, when the router is created: pass a ref or a getter rather than
+switching it on later.
 
 ### Unsupported browsers
 
