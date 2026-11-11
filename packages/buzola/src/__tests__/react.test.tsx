@@ -1202,6 +1202,70 @@ describe('BuzolaProvider shouldIntercept', () => {
 	})
 })
 
+describe('BuzolaProvider scrollContainer', () => {
+	/* The provider builds its router on the browser adapter, so stand in for the slice of the Navigation API it uses. */
+	interface FakeNavigateEvent {
+		destination: { url: string }
+		canIntercept: boolean
+		navigationType: 'push'
+		userInitiated: boolean
+		intercept: (options: { handler: () => Promise<void> }) => void
+	}
+
+	function withNavigation() {
+		const listeners = new Set<(event: FakeNavigateEvent) => void>()
+		Object.defineProperty(window, 'navigation', {
+			value: {
+				currentEntry: { url: 'http://localhost/', key: 'a', getState: () => undefined },
+				addEventListener: (type: string, listener: (event: FakeNavigateEvent) => void) => listeners.add(listener),
+				removeEventListener: (type: string, listener: (event: FakeNavigateEvent) => void) => listeners.delete(listener),
+			},
+			writable: true,
+			configurable: true,
+		})
+		return function push(url: string) {
+			for (const listener of listeners) {
+				listener({
+					destination: { url },
+					canIntercept: true,
+					navigationType: 'push',
+					userInitiated: true,
+					intercept: options => void options.handler(),
+				})
+			}
+		}
+	}
+
+	afterEach(() => {
+		Reflect.deleteProperty(window, 'navigation')
+		window.history.scrollRestoration = 'auto'
+	})
+
+	const routes = buildRouteTree([
+		{ path: '/', component: Home, isIndex: true },
+		{ path: '/about', component: About },
+	])
+
+	it('resets the container a ref points at on a push', async () => {
+		const push = withNavigation()
+		const scrollTo = mock((_options: ScrollToOptions) => {})
+		const ref = { current: { scrollTop: 300, scrollLeft: 0, scrollTo } }
+		render(<BuzolaProvider routes={routes} scrollContainer={ref} />)
+		expect(window.history.scrollRestoration).toBe('manual')
+
+		await act(async () => push('http://localhost/about'))
+
+		expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'instant' })
+	})
+
+	it('leaves scroll restoration to the browser without the prop', () => {
+		withNavigation()
+		render(<BuzolaProvider routes={routes} />)
+
+		expect(window.history.scrollRestoration).toBe('auto')
+	})
+})
+
 // ─── BuzolaProvider without the Navigation API ───────────────────────────────
 
 describe('BuzolaProvider without the Navigation API', () => {

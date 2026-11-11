@@ -169,6 +169,7 @@ export interface NavigateOptions {
 	/**
 	 * Whether to reset scroll position after navigation.
 	 * Default is `true`: scroll to the top (or to the `#fragment`) on push and replace, restore on traverse.
+	 * A configured `scrollContainer` is reset along with the document.
 	 * Set to `false` to preserve current scroll position.
 	 */
 	resetScroll?: boolean
@@ -180,6 +181,22 @@ export interface NavigateOptions {
 	 */
 	focusReset?: 'after-transition' | 'manual'
 }
+
+/** The part of an element the router reads and moves when it scrolls a container. Any DOM `Element` fits. */
+export interface ScrollableElement {
+	readonly scrollTop: number
+	readonly scrollLeft: number
+	scrollTo(options: ScrollToOptions): void
+}
+
+/**
+ * The element an app scrolls its pages in, when that is not the document: the element itself, a ref to it,
+ * or a getter. A ref or a getter is resolved at every navigation, so the element may mount after the router.
+ */
+export type ScrollContainer =
+	| ScrollableElement
+	| { readonly current: ScrollableElement | null }
+	| (() => ScrollableElement | null | undefined)
 
 /**
  * Blocker function registered with the router.
@@ -257,4 +274,9 @@ export interface NavigationAdapter {
 	removeEventListener(type: 'navigate', handler: (event: BuzolaNavigateEvent) => void): void
 	/** Get the current navigation state. */
 	getState(): unknown
+	/**
+	 * A key that identifies the current history entry and survives a replace, like `NavigationHistoryEntry.key`.
+	 * The router keys saved scroll container positions by it; an adapter without it gets no restore on back and forward.
+	 */
+	getCurrentEntryKey?(): string | undefined
 }

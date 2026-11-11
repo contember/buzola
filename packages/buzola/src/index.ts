@@ -30,6 +30,8 @@ export type {
 	RouteNode,
 	RouterState,
 	RouteTree,
+	ScrollableElement,
+	ScrollContainer,
 	ShouldInterceptFn,
 	StandardSchema,
 } from './engine/types.js'

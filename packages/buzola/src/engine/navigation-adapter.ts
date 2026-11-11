@@ -116,6 +116,9 @@ export function createBrowserNavigationAdapter(): NavigationAdapter {
 		getState() {
 			return nav.currentEntry?.getState?.()
 		},
+		getCurrentEntryKey() {
+			return nav.currentEntry?.key
+		},
 	}
 }
 
@@ -128,6 +131,7 @@ export interface MemoryNavigationAdapterOptions {
 interface MemoryEntry {
 	url: string
 	state?: unknown
+	key: string
 }
 
 /**
@@ -148,7 +152,8 @@ export function createMemoryNavigationAdapter(
 ): MemoryNavigationAdapter {
 	const { initialURL = 'http://localhost/' } = options
 
-	const entries: MemoryEntry[] = [{ url: initialURL }]
+	let nextKey = 0
+	const entries: MemoryEntry[] = [{ url: initialURL, key: String(nextKey++) }]
 	let currentIndex = 0
 	const listeners = new Set<(event: BuzolaNavigateEvent) => void>()
 	const left: string[] = []
@@ -228,11 +233,12 @@ export function createMemoryNavigationAdapter(
 
 			emitNavigateEvent(resolved, type, () => {
 				if (options?.replace) {
-					entries[currentIndex] = { url: resolved, state: options.state }
+					// Like the browser, a replace keeps the entry's key.
+					entries[currentIndex] = { url: resolved, state: options.state, key: entries[currentIndex].key }
 				} else {
 					// Remove any forward entries
 					entries.length = currentIndex + 1
-					entries.push({ url: resolved, state: options?.state })
+					entries.push({ url: resolved, state: options?.state, key: String(nextKey++) })
 					currentIndex++
 				}
 			}, options?.viewTransition)
@@ -259,6 +265,9 @@ export function createMemoryNavigationAdapter(
 		},
 		getState() {
 			return entries[currentIndex].state
+		},
+		getCurrentEntryKey() {
+			return entries[currentIndex].key
 		},
 		leftApp() {
 			return left
