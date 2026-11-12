@@ -6,6 +6,6 @@ export default createPage()
 		<div>
 			<h1>404</h1>
 			<p>Page not found.</p>
-			<Link to="index">Go home</Link>
+			<Link to="home">Go home</Link>
 		</div>
 	))

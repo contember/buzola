@@ -16,7 +16,9 @@
 	},
 	"files": [
 		"dist",
-		"src"
+		"!dist/__tests__",
+		"src",
+		"!src/__tests__"
 	],
 	"license": "MIT",
 	"repository": {
