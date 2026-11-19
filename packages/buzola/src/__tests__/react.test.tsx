@@ -858,6 +858,15 @@ describe('Outlet error fallback', () => {
 		expect(container.textContent).toBe('')
 	})
 
+	it('renders nothing for a provider errorFallback of null', () => {
+		const configs: RouteConfig[] = [{ path: '/page', component: ThrowingPage }]
+		const { router } = createTestRouter(configs, 'http://localhost/page')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(<BuzolaProvider router={router} errorFallback={null} />)
+		spy.mockRestore()
+		expect(container.textContent).toBe('')
+	})
+
 	it('recovers when a param of a parent route changes', async () => {
 		function OrgSettings() {
 			const params = useParams<{ orgId: string }>()

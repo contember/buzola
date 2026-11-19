@@ -28,7 +28,7 @@ function DefaultNotFound(): React.ReactElement {
 export interface OutletProps {
 	/** Fallback to show while lazy components load. */
 	fallback?: React.ReactNode
-	/** Fallback to show when a route component throws an error. Defaults to the `errorFallback` of `BuzolaProvider`; `null` renders nothing. */
+	/** Fallback to show when a route component throws an error. Defaults to the `errorFallback` of `BuzolaProvider`; any other value than `undefined`, `null` included, replaces it. */
 	errorFallback?: ErrorFallback
 	/** Content to show when no route matches. Defaults to a built-in 404 page. Pass `null` to render nothing. */
 	notFound?: React.ReactNode

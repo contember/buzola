@@ -5,6 +5,7 @@ import { isDev } from './env.js'
 export type ErrorFallback = React.ReactNode | ((error: Error) => React.ReactNode)
 
 interface ErrorBoundaryProps {
+	/** Rendered in place of the children after they throw. Any value other than `undefined`, `null` included, replaces the built-in notice. */
 	fallback?: ErrorFallback
 	/** When this key changes, the error state is reset. */
 	resetKey?: string
