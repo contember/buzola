@@ -24,7 +24,7 @@ export type BuzolaProviderProps =
 		children?: React.ReactNode
 		/** Global middleware that wraps the rendered route tree. Has access to all matched params. */
 		middleware?: MiddlewareComponent
-		/** Error fallback of every `<Outlet>` without its own `errorFallback`. Defaults to a short notice. */
+		/** Error fallback of every `<Outlet>` without its own `errorFallback`. Defaults to a short notice; `null` renders nothing. */
 		errorFallback?: ErrorFallback
 	}
 	& (

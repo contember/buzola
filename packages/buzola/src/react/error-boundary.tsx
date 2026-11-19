@@ -18,7 +18,7 @@ interface ErrorBoundaryState {
 
 /**
  * Error boundary for catching rendering errors in route components.
- * Resets automatically when `resetKey` changes (e.g., on navigation to a different route or params).
+ * Resets automatically when `resetKey` changes (e.g., on navigation to another URL).
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 	state: ErrorBoundaryState = { error: null, prevResetKey: undefined }
@@ -31,7 +31,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 		props: ErrorBoundaryProps,
 		state: ErrorBoundaryState,
 	): Partial<ErrorBoundaryState> | null {
-		// Reset error state when resetKey changes (i.e., route or params changed)
 		if (state.error && props.resetKey !== state.prevResetKey) {
 			return { error: null, prevResetKey: props.resetKey }
 		}
@@ -50,7 +49,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 			if (typeof this.props.fallback === 'function') {
 				return this.props.fallback(this.state.error)
 			}
-			if (this.props.fallback) {
+			if (this.props.fallback !== undefined) {
 				return this.props.fallback
 			}
 			return <DefaultErrorFallback error={this.state.error} />

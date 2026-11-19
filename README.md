@@ -303,8 +303,9 @@ switching it on later.
 
 Each `<Outlet>` wraps its route in an error boundary. When the route throws while rendering, the boundary
 shows a fallback in its place: the Outlet's `errorFallback`, else the `errorFallback` of `BuzolaProvider`,
-else a short built-in notice (with the error message outside production builds). Set it once on the
-provider instead of on every Outlet; a function receives the error:
+else a short built-in notice. The notice adds the error message when `process.env.NODE_ENV` is set and is
+not `production`. `null` renders nothing. Set the fallback once on the provider instead of on every Outlet;
+a function receives the error:
 
 ```tsx
 <BuzolaProvider
@@ -314,9 +315,9 @@ provider instead of on every Outlet; a function receives the error:
 />
 ```
 
-The boundary resets on the next navigation that changes a route or a route param anywhere in the match chain,
-so moving from a record that crashed to another record of the same page renders that record. A page with
-its own `.catch()` handles its errors itself and also resets on any URL change.
+The boundary resets on the next navigation to another URL, so moving from a record that crashed to another
+record of the same page renders that record, whether a path or a search param picks it. A page with its
+own `.catch()` handles its errors itself and resets the same way.
 
 ### Unsupported browsers
 

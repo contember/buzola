@@ -28,7 +28,7 @@ function DefaultNotFound(): React.ReactElement {
 export interface OutletProps {
 	/** Fallback to show while lazy components load. */
 	fallback?: React.ReactNode
-	/** Fallback to show when a route component throws an error. Defaults to the `errorFallback` of `BuzolaProvider`. */
+	/** Fallback to show when a route component throws an error. Defaults to the `errorFallback` of `BuzolaProvider`; `null` renders nothing. */
 	errorFallback?: ErrorFallback
 	/** Content to show when no route matches. Defaults to a built-in 404 page. Pass `null` to render nothing. */
 	notFound?: React.ReactNode
@@ -73,9 +73,6 @@ export function Outlet({ fallback, errorFallback, notFound }: OutletProps): Reac
 		}
 	}, [state, depth, effectiveDepth, matches, match, routeContext.params])
 
-	// Any route or param change in the chain resets the boundary: the subtree below can read all of them.
-	const resetKey = useMemo(() => JSON.stringify(matches.map(m => [m.node.id, m.params])), [matches])
-
 	if (!match) {
 		// At root depth with no matches: show 404
 		if (depth === 0 && matches.length === 0) {
@@ -88,7 +85,11 @@ export function Outlet({ fallback, errorFallback, notFound }: OutletProps): Reac
 	const Component = match.node.component!
 
 	return (
-		<ErrorBoundary fallback={errorFallback ?? defaultErrorFallback} resetKey={resetKey}>
+		<ErrorBoundary
+			fallback={errorFallback !== undefined ? errorFallback : defaultErrorFallback}
+			// Pages read search params too, and RouteMatch.params holds only path params.
+			resetKey={state.location.href}
+		>
 			<Suspense fallback={fallback ?? null}>
 				{nextContext && (
 					<RouteContext value={nextContext}>

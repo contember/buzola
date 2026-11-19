@@ -822,6 +822,42 @@ describe('Outlet error fallback', () => {
 		expect(container.textContent).toBe('User 2')
 	})
 
+	it('recovers when navigating to the same route with other search params', async () => {
+		function Product() {
+			const { id } = useSearchParams<{ id: string }>()
+			if (id === 'broken') throw new Error('broken product')
+			return <div>Product {id}</div>
+		}
+		const configs: RouteConfig[] = [{ path: '/product', component: Product }]
+		const { router } = createTestRouter(configs, 'http://localhost/product?id=broken')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(
+			<BuzolaProvider router={router}>
+				<Outlet errorFallback={<div>Crashed</div>} />
+			</BuzolaProvider>,
+		)
+		spy.mockRestore()
+		expect(container.textContent).toBe('Crashed')
+
+		router.navigate('/product?id=2')
+		await flushNav()
+
+		expect(container.textContent).toBe('Product 2')
+	})
+
+	it('renders nothing for an Outlet errorFallback of null, even with a provider one', () => {
+		const configs: RouteConfig[] = [{ path: '/page', component: ThrowingPage }]
+		const { router } = createTestRouter(configs, 'http://localhost/page')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(
+			<BuzolaProvider router={router} errorFallback={<div>Provider fallback</div>}>
+				<Outlet errorFallback={null} />
+			</BuzolaProvider>,
+		)
+		spy.mockRestore()
+		expect(container.textContent).toBe('')
+	})
+
 	it('recovers when a param of a parent route changes', async () => {
 		function OrgSettings() {
 			const params = useParams<{ orgId: string }>()
