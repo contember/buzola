@@ -2,7 +2,8 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalSt
 import { createBrowserNavigationAdapter, isNavigationApiSupported } from '../engine/navigation-adapter.js'
 import { resolveScrollContainer, Router } from '../engine/router.js'
 import type { RouteMatch, RouteTree, ScrollContainer, ShouldInterceptFn } from '../engine/types.js'
-import { RouteContext, type RouteContextValue, RouterContext } from './context.js'
+import { DefaultErrorFallbackContext, RouteContext, type RouteContextValue, RouterContext } from './context.js'
+import type { ErrorFallback } from './error-boundary.js'
 import { Outlet } from './outlet.js'
 
 /** Props passed to the middleware component. */
@@ -23,6 +24,8 @@ export type BuzolaProviderProps =
 		children?: React.ReactNode
 		/** Global middleware that wraps the rendered route tree. Has access to all matched params. */
 		middleware?: MiddlewareComponent
+		/** Error fallback of every `<Outlet>` without its own `errorFallback`. Defaults to a short notice. */
+		errorFallback?: ErrorFallback
 	}
 	& (
 		| {
@@ -73,7 +76,7 @@ function UnsupportedBrowser(): React.ReactElement {
 	return <p>This browser is not supported. Open the page in a current version of Chrome, Edge, Firefox or Safari.</p>
 }
 
-function RouterRoot({ routes, children, middleware: Middleware, ...props }: BuzolaProviderProps): React.ReactElement {
+function RouterRoot({ routes, children, middleware: Middleware, errorFallback, ...props }: BuzolaProviderProps): React.ReactElement {
 	// The router is created once, so it reads the latest prop through a ref rather than the first render's closure.
 	const shouldInterceptRef = useRef(props.shouldIntercept)
 	const scrollContainerRef = useRef(props.scrollContainer)
@@ -126,11 +129,13 @@ function RouterRoot({ routes, children, middleware: Middleware, ...props }: Buzo
 
 	return (
 		<RouterContext value={router}>
-			<RouteContext value={routeContextValue}>
-				{Middleware
-					? <Middleware params={allParams} matches={state.matches}>{content}</Middleware>
-					: content}
-			</RouteContext>
+			<DefaultErrorFallbackContext value={errorFallback}>
+				<RouteContext value={routeContextValue}>
+					{Middleware
+						? <Middleware params={allParams} matches={state.matches}>{content}</Middleware>
+						: content}
+				</RouteContext>
+			</DefaultErrorFallbackContext>
 		</RouterContext>
 	)
 }

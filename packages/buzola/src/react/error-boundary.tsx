@@ -1,7 +1,11 @@
 import React, { Component } from 'react'
+import { isDev } from './env.js'
+
+/** What a route error boundary renders in place of a route that threw. */
+export type ErrorFallback = React.ReactNode | ((error: Error) => React.ReactNode)
 
 interface ErrorBoundaryProps {
-	fallback?: React.ReactNode | ((error: Error) => React.ReactNode)
+	fallback?: ErrorFallback
 	/** When this key changes, the error state is reset. */
 	resetKey?: string
 	children: React.ReactNode
@@ -14,7 +18,7 @@ interface ErrorBoundaryState {
 
 /**
  * Error boundary for catching rendering errors in route components.
- * Resets automatically when `resetKey` changes (e.g., on navigation to a different route).
+ * Resets automatically when `resetKey` changes (e.g., on navigation to a different route or params).
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 	state: ErrorBoundaryState = { error: null, prevResetKey: undefined }
@@ -27,7 +31,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 		props: ErrorBoundaryProps,
 		state: ErrorBoundaryState,
 	): Partial<ErrorBoundaryState> | null {
-		// Reset error state when resetKey changes (i.e., route changed)
+		// Reset error state when resetKey changes (i.e., route or params changed)
 		if (state.error && props.resetKey !== state.prevResetKey) {
 			return { error: null, prevResetKey: props.resetKey }
 		}
@@ -49,8 +53,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 			if (this.props.fallback) {
 				return this.props.fallback
 			}
-			return React.createElement('div', { style: { color: 'red' } }, `Route error: ${this.state.error.message}`)
+			return <DefaultErrorFallback error={this.state.error} />
 		}
 		return this.props.children
 	}
+}
+
+// The message stays out of production builds: it can carry internals and means nothing to the user.
+function DefaultErrorFallback({ error }: { error: Error }): React.ReactElement {
+	return (
+		<div role="alert">
+			<p>Something went wrong while showing this page.</p>
+			{isDev && <p>Route error: {error.message}</p>}
+		</div>
+	)
 }

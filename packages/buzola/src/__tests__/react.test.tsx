@@ -756,6 +756,97 @@ describe('Outlet', () => {
 	})
 })
 
+// ─── Outlet error fallback ───────────────────────────────────────────────────
+
+describe('Outlet error fallback', () => {
+	function ThrowingPage(): React.ReactNode {
+		throw new Error('boom')
+	}
+
+	function UserOrThrow() {
+		const params = useParams<{ userId: string }>()
+		if (params.userId === 'broken') throw new Error('broken user')
+		return <div>User {params.userId}</div>
+	}
+
+	it('uses the provider errorFallback in an Outlet without its own', () => {
+		const configs: RouteConfig[] = [
+			{ path: '/', component: Layout, isLayout: true, children: [{ path: '/page', component: ThrowingPage }] },
+		]
+		const { router } = createTestRouter(configs, 'http://localhost/page')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(
+			<BuzolaProvider router={router} errorFallback={(error) => <div>Provider fallback: {error.message}</div>} />,
+		)
+		spy.mockRestore()
+		expect(container.textContent).toBe('LayoutProvider fallback: boom')
+	})
+
+	it('prefers the errorFallback of the Outlet over the provider one', () => {
+		const configs: RouteConfig[] = [{ path: '/page', component: ThrowingPage }]
+		const { router } = createTestRouter(configs, 'http://localhost/page')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(
+			<BuzolaProvider router={router} errorFallback={<div>Provider fallback</div>}>
+				<Outlet errorFallback={<div>Outlet fallback</div>} />
+			</BuzolaProvider>,
+		)
+		spy.mockRestore()
+		expect(container.textContent).toBe('Outlet fallback')
+	})
+
+	it('announces the built-in fallback as an alert', () => {
+		const configs: RouteConfig[] = [{ path: '/page', component: ThrowingPage }]
+		const { router } = createTestRouter(configs, 'http://localhost/page')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { getByRole } = render(<BuzolaProvider router={router} />)
+		spy.mockRestore()
+		expect(getByRole('alert').textContent).toContain('Something went wrong while showing this page.')
+	})
+
+	it('recovers when navigating to the same route with other params', async () => {
+		const configs: RouteConfig[] = [{ path: '/users/:userId', component: UserOrThrow }]
+		const { router } = createTestRouter(configs, 'http://localhost/users/broken')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(
+			<BuzolaProvider router={router}>
+				<Outlet errorFallback={<div>Crashed</div>} />
+			</BuzolaProvider>,
+		)
+		spy.mockRestore()
+		expect(container.textContent).toBe('Crashed')
+
+		router.navigate('/users/2')
+		await flushNav()
+
+		expect(container.textContent).toBe('User 2')
+	})
+
+	it('recovers when a param of a parent route changes', async () => {
+		function OrgSettings() {
+			const params = useParams<{ orgId: string }>()
+			if (params.orgId === 'broken') throw new Error('broken org')
+			return <div>Settings of {params.orgId}</div>
+		}
+		function OrgLayout() {
+			return <Outlet errorFallback={<div>Crashed</div>} />
+		}
+		const configs: RouteConfig[] = [
+			{ path: '/org/:orgId', component: OrgLayout, isLayout: true, children: [{ path: '/settings', component: OrgSettings }] },
+		]
+		const { router } = createTestRouter(configs, 'http://localhost/org/broken/settings')
+		const spy = spyOn(console, 'error').mockImplementation(() => {})
+		const { container } = render(<BuzolaProvider router={router} />)
+		spy.mockRestore()
+		expect(container.textContent).toBe('Crashed')
+
+		router.navigate('/org/acme/settings')
+		await flushNav()
+
+		expect(container.textContent).toBe('Settings of acme')
+	})
+})
+
 // ─── Link ────────────────────────────────────────────────────────────────────
 
 describe('Link', () => {
