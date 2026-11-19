@@ -1,8 +1,7 @@
 import React, { Suspense, use, useMemo } from 'react'
-import { RouteContext, type RouteContextValue } from './context.js'
-import { ErrorBoundary } from './error-boundary.js'
-
-const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
+import { DefaultErrorFallbackContext, RouteContext, type RouteContextValue } from './context.js'
+import { isDev } from './env.js'
+import { ErrorBoundary, type ErrorFallback } from './error-boundary.js'
 
 function DefaultNotFound(): React.ReactElement {
 	return React.createElement(
@@ -29,8 +28,8 @@ function DefaultNotFound(): React.ReactElement {
 export interface OutletProps {
 	/** Fallback to show while lazy components load. */
 	fallback?: React.ReactNode
-	/** Fallback to show when a route component throws an error. */
-	errorFallback?: React.ReactNode | ((error: Error) => React.ReactNode)
+	/** Fallback to show when a route component throws an error. Defaults to the `errorFallback` of `BuzolaProvider`; any other value than `undefined`, `null` included, replaces it. */
+	errorFallback?: ErrorFallback
 	/** Content to show when no route matches. Defaults to a built-in 404 page. Pass `null` to render nothing. */
 	notFound?: React.ReactNode
 }
@@ -45,6 +44,7 @@ export function Outlet({ fallback, errorFallback, notFound }: OutletProps): Reac
 		throw new Error('<Outlet /> must be used within a <BuzolaProvider>')
 	}
 
+	const defaultErrorFallback = use(DefaultErrorFallbackContext)
 	const { state, depth, matches } = routeContext
 
 	// Find the next match that has a component, skipping componentless nodes
@@ -85,7 +85,11 @@ export function Outlet({ fallback, errorFallback, notFound }: OutletProps): Reac
 	const Component = match.node.component!
 
 	return (
-		<ErrorBoundary fallback={errorFallback} resetKey={match.node.id}>
+		<ErrorBoundary
+			fallback={errorFallback !== undefined ? errorFallback : defaultErrorFallback}
+			// Pages read search params too, and RouteMatch.params holds only path params.
+			resetKey={state.location.href}
+		>
 			<Suspense fallback={fallback ?? null}>
 				{nextContext && (
 					<RouteContext value={nextContext}>

@@ -63,4 +63,4 @@ export {
 	useRouterState,
 	useSearchParams,
 } from './react/index.js'
-export type { BlockerState, BuzolaProviderProps, LinkProps, OutletProps, RouteContextValue } from './react/index.js'
+export type { BlockerState, BuzolaProviderProps, ErrorFallback, LinkProps, OutletProps, RouteContextValue } from './react/index.js'

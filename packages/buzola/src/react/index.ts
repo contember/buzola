@@ -8,6 +8,7 @@ export { Link } from './link.js'
 export type { LinkProps } from './link.js'
 
 export { ErrorBoundary } from './error-boundary.js'
+export type { ErrorFallback } from './error-boundary.js'
 
 export {
 	useBlocker,

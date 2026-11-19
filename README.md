@@ -177,12 +177,12 @@ createPage()
 
 ### Components
 
-| Component          | Description                                                                                                                                  |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `scrollContainer`, `middleware`, `unsupportedBrowser` |
-| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `resetScroll`, `asChild`, `activeExact`                      |
-| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                                                                  |
-| `<ErrorBoundary>`  | Catches component errors in the route tree                                                                                                   |
+| Component          | Description                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<BuzolaProvider>` | Root provider. Props: `routes`, `pageRegistry`, `persistentParams`, `shouldIntercept`, `scrollContainer`, `middleware`, `errorFallback`, `unsupportedBrowser` |
+| `<Link>`           | Type-safe navigation link. Props: `to`, `params`, `prefetch`, `viewTransition`, `resetScroll`, `asChild`, `activeExact`                                       |
+| `<Outlet>`         | Renders matched child route. Props: `fallback`, `errorFallback`, `notFound`                                                                                   |
+| `<ErrorBoundary>`  | Catches component errors in the route tree                                                                                                                    |
 
 ### Hooks
 
@@ -298,6 +298,27 @@ gets the main pane restored; any other scroller keeps its own position. Position
 current document; Back to an entry from before a reload loads a new document, which starts at the top.
 The `BuzolaProvider` prop is read once, when the router is created: pass a ref or a getter rather than
 switching it on later.
+
+### Route errors
+
+Each `<Outlet>` wraps its route in an error boundary. When the route throws while rendering, the boundary
+shows a fallback in its place: the Outlet's `errorFallback`, else the `errorFallback` of `BuzolaProvider`,
+else a short built-in notice. The notice adds the error message unless `process.env.NODE_ENV` is
+`production` or `process` is not defined. Any value other than `undefined` replaces the default, so `null`
+or `false` renders nothing. Set the fallback once on the provider instead of on every Outlet;
+a function receives the error:
+
+```tsx
+<BuzolaProvider
+	routes={routes}
+	pageRegistry={pageRegistry}
+	errorFallback={(error) => <PageError error={error} />}
+/>
+```
+
+The boundary resets on the next navigation to another URL, so moving from a record that crashed to another
+record of the same page renders that record, whether a path or a search param picks it. A page with its
+own `.catch()` handles its errors itself and resets the same way.
 
 ### Unsupported browsers
 

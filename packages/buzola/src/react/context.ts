@@ -1,6 +1,7 @@
 import { createContext } from 'react'
 import type { Router } from '../engine/router.js'
 import type { RouteMatch, RouterState } from '../engine/types.js'
+import type { ErrorFallback } from './error-boundary.js'
 
 /**
  * Context providing the Router instance.
@@ -22,3 +23,8 @@ export interface RouteContextValue {
 }
 
 export const RouteContext = createContext<RouteContextValue | null>(null)
+
+/**
+ * Context for the error fallback of every `<Outlet>` without its own, set by `BuzolaProvider`.
+ */
+export const DefaultErrorFallbackContext = createContext<ErrorFallback | undefined>(undefined)
